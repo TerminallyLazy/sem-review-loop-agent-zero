@@ -1,0 +1,42 @@
+{
+  "version": "0.21.0",
+  "source_commit": "a4e8b53521034536dbe26067f948085870d59658",
+  "base_url": "https://github.com/Ataraxy-Labs/sem/releases/download/v0.21.0",
+  "platforms": {
+    "darwin-arm64": {
+      "asset": "sem-darwin-arm64.tar.gz",
+      "sha256": "7e17372ffdf6477a2b711e173fb783ecd82a4559ee3747985e2397c128d1e6f7",
+      "binary_sha256": "818c7af64e71b71c37dee84ad5096b05ea09c9b0401828f818c685d3da13b81d",
+      "archive": "tar.gz",
+      "binary": "sem"
+    },
+    "darwin-x86_64": {
+      "asset": "sem-darwin-x86_64.tar.gz",
+      "sha256": "b179b996cf6060d74873fc117b2dd94104af9835ff48097c6e9c2923a374dee1",
+      "binary_sha256": "25dfe641dd348f1fe153fe0177ad97bd4334e83d148ac18b2bb9e5e697bae1f0",
+      "archive": "tar.gz",
+      "binary": "sem"
+    },
+    "linux-arm64": {
+      "asset": "sem-linux-arm64.tar.gz",
+      "sha256": "0480663055d3d7c386dabee6e57766205984ac151bd691540bde0b3be64af27b",
+      "binary_sha256": "c69626bb9e99fd5de5c7f9de29567e675155941e36559fe205a750946d350680",
+      "archive": "tar.gz",
+      "binary": "sem"
+    },
+    "linux-x86_64": {
+      "asset": "sem-linux-x86_64.tar.gz",
+      "sha256": "4a06f019552add37b4b0693309daaf529eae7f291217d20c291294c790b16b4b",
+      "binary_sha256": "23206983bacf23f613452a1fdd97df8e6dfedfd3dce9fff1c03f02672fac2ef7",
+      "archive": "tar.gz",
+      "binary": "sem"
+    },
+    "windows-x86_64": {
+      "asset": "sem-windows-x86_64.zip",
+      "sha256": "8ead28b095b829dba340e77d8d184394918223bd62a3fcd7cd634df50246fc9b",
+      "binary_sha256": "4a5c4a666d022aed6574b00ea384dd433625817ecfaa20e2052c375f19bdf2ed",
+      "archive": "zip",
+      "binary": "sem.exe"
+    }
+  }
+}

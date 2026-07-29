@@ -1,0 +1,7 @@
+watched_subdirectory: .
+automatic_refresh: true
+debounce_ms: 400
+automatic_repair: false
+max_repair_cycles: 2
+custom_sem_binary: ""
+context_token_budget: 8000
