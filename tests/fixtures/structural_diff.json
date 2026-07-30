@@ -1,0 +1,36 @@
+{
+  "summary": {
+    "fileCount": 1,
+    "added": 0,
+    "modified": 1,
+    "deleted": 0,
+    "moved": 0,
+    "renamed": 0,
+    "reordered": 0,
+    "binary": 0,
+    "orphan": 0,
+    "total": 1
+  },
+  "changes": [
+    {
+      "entityId": "src/auth.py::function::validate_token",
+      "changeType": "modified",
+      "entityType": "function",
+      "entityName": "validate_token",
+      "startLine": 10,
+      "endLine": 14,
+      "oldStartLine": 10,
+      "oldEndLine": 12,
+      "oldEntityName": null,
+      "filePath": "src/auth.py",
+      "oldFilePath": null,
+      "oldParentId": null,
+      "beforeContent": "def validate_token(token):\n    return bool(token)\n",
+      "afterContent": "def validate_token(token):\n    return verify(token)\n",
+      "commitSha": null,
+      "author": null,
+      "structuralChange": true
+    }
+  ],
+  "binaryChanges": []
+}

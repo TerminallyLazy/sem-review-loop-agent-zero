@@ -1,0 +1,36 @@
+{
+  "summary": {
+    "fileCount": 1,
+    "added": 0,
+    "modified": 0,
+    "deleted": 1,
+    "moved": 0,
+    "renamed": 0,
+    "reordered": 0,
+    "binary": 0,
+    "orphan": 0,
+    "total": 1
+  },
+  "changes": [
+    {
+      "entityId": "src/legacy.py::function::retire",
+      "changeType": "deleted",
+      "entityType": "function",
+      "entityName": "retire",
+      "startLine": 4,
+      "endLine": 5,
+      "oldStartLine": 4,
+      "oldEndLine": 5,
+      "oldEntityName": null,
+      "filePath": "src/legacy.py",
+      "oldFilePath": null,
+      "oldParentId": null,
+      "beforeContent": "def retire():\n    return True\n",
+      "afterContent": null,
+      "commitSha": null,
+      "author": null,
+      "structuralChange": null
+    }
+  ],
+  "binaryChanges": []
+}

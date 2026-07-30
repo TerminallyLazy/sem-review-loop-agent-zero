@@ -1,0 +1,36 @@
+{
+  "summary": {
+    "fileCount": 1,
+    "added": 0,
+    "modified": 1,
+    "deleted": 0,
+    "moved": 0,
+    "renamed": 0,
+    "reordered": 0,
+    "binary": 0,
+    "orphan": 0,
+    "total": 1
+  },
+  "changes": [
+    {
+      "entityId": "src/view.py::function::title",
+      "changeType": "modified",
+      "entityType": "function",
+      "entityName": "title",
+      "startLine": 1,
+      "endLine": 2,
+      "oldStartLine": 1,
+      "oldEndLine": 2,
+      "oldEntityName": null,
+      "filePath": "src/view.py",
+      "oldFilePath": null,
+      "oldParentId": null,
+      "beforeContent": "def title():\n    return 'Old'\n",
+      "afterContent": "def title():\n    return \"Old\"\n",
+      "commitSha": null,
+      "author": null,
+      "structuralChange": false
+    }
+  ],
+  "binaryChanges": []
+}

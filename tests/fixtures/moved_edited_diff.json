@@ -1,0 +1,36 @@
+{
+  "summary": {
+    "fileCount": 1,
+    "added": 0,
+    "modified": 1,
+    "deleted": 0,
+    "moved": 1,
+    "renamed": 0,
+    "reordered": 0,
+    "binary": 0,
+    "orphan": 0,
+    "total": 1
+  },
+  "changes": [
+    {
+      "entityId": "src/new/service.py::function::review",
+      "changeType": "moved",
+      "entityType": "function",
+      "entityName": "review",
+      "startLine": 3,
+      "endLine": 4,
+      "oldStartLine": 8,
+      "oldEndLine": 9,
+      "oldEntityName": null,
+      "filePath": "src/new/service.py",
+      "oldFilePath": "src/old/service.py",
+      "oldParentId": null,
+      "beforeContent": "def review():\n    return 'old'\n",
+      "afterContent": "def review():\n    return 'new'\n",
+      "commitSha": null,
+      "author": null,
+      "structuralChange": true
+    }
+  ],
+  "binaryChanges": []
+}

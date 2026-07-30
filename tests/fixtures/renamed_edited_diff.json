@@ -1,0 +1,36 @@
+{
+  "summary": {
+    "fileCount": 1,
+    "added": 0,
+    "modified": 1,
+    "deleted": 0,
+    "moved": 0,
+    "renamed": 1,
+    "reordered": 0,
+    "binary": 0,
+    "orphan": 0,
+    "total": 1
+  },
+  "changes": [
+    {
+      "entityId": "src/service.py::function::new_name",
+      "changeType": "renamed",
+      "entityType": "function",
+      "entityName": "new_name",
+      "startLine": 1,
+      "endLine": 2,
+      "oldStartLine": 1,
+      "oldEndLine": 2,
+      "oldEntityName": "old_name",
+      "filePath": "src/service.py",
+      "oldFilePath": null,
+      "oldParentId": null,
+      "beforeContent": "def old_name():\n    return 1\n",
+      "afterContent": "def new_name():\n    return 2\n",
+      "commitSha": null,
+      "author": null,
+      "structuralChange": true
+    }
+  ],
+  "binaryChanges": []
+}

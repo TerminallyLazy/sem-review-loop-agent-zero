@@ -1,0 +1,36 @@
+{
+  "summary": {
+    "fileCount": 1,
+    "added": 0,
+    "modified": 0,
+    "deleted": 0,
+    "moved": 0,
+    "renamed": 0,
+    "reordered": 1,
+    "binary": 0,
+    "orphan": 0,
+    "total": 1
+  },
+  "changes": [
+    {
+      "entityId": "src/order.py::function::second",
+      "changeType": "reordered",
+      "entityType": "function",
+      "entityName": "second",
+      "startLine": 1,
+      "endLine": 2,
+      "oldStartLine": 4,
+      "oldEndLine": 5,
+      "oldEntityName": null,
+      "filePath": "src/order.py",
+      "oldFilePath": null,
+      "oldParentId": null,
+      "beforeContent": null,
+      "afterContent": null,
+      "commitSha": null,
+      "author": null,
+      "structuralChange": null
+    }
+  ],
+  "binaryChanges": []
+}
