@@ -34,6 +34,7 @@ overwriting user changes.
 
 - Plugin suite: `598 passed, 1 skipped` (the skip is the opt-in real-binary
   test when `SEM_TEST_BINARY` is unset).
+- Plugin suite with the pinned binary enabled: `599 passed`.
 - Pinned integration: `1 passed`, including working/staged diffs and native
   context/impact queries.
 - Pinned executable: `sem 0.21.0`, SHA-256
