@@ -208,8 +208,6 @@ def test_runner_holds_verified_binary_lease_through_execution(
             "diff",
             "--format",
             "json",
-            "--",
-            ".",
         ]
         return CommandResult(0, json.dumps(EMPTY_DIFF), "")
 
@@ -256,8 +254,6 @@ def test_project_root_diff_still_excludes_agent_zero_metadata(
         "diff",
         "--format",
         "json",
-        "--",
-        ".",
     ]
 
 
@@ -379,7 +375,7 @@ def test_a0proj_changes_are_removed_and_summary_recounted_before_parse(
         binary_lease=fixed_binary_lease,
     ).diff(scope, DiffRequest("working"), "fingerprint")
 
-    assert calls[0]["args"][-2:] == ["--", "."]
+    assert calls[0]["args"][-2:] == ["--format", "json"]
     assert snapshot.summary.file_count == 1
     assert snapshot.summary.modified == 1
     assert snapshot.summary.renamed == 0
@@ -1232,4 +1228,21 @@ def test_query_result_must_be_a_json_object(tmp_path: Path) -> None:
     entity = EntityRef("id", "name", "variable", "source.py")
 
     with pytest.raises(SemCommandError, match="JSON object"):
+        runner.impact(scope, entity)
+
+
+def test_query_result_is_bounded_before_api_storage(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    source = project / "source.py"
+    project.mkdir()
+    source.write_text("value = 1\n", encoding="utf-8")
+    scope = make_scope("ctx", "project", project, ".")
+    runner = SemRunner(
+        tmp_path / "cache",
+        execute=lambda **_: CommandResult(0, json.dumps({"source": "x" * 250_000}), ""),
+        binary_lease=fixed_binary_lease,
+    )
+    entity = EntityRef("id", "name", "variable", "source.py")
+
+    with pytest.raises(SemCommandError, match="bounded response"):
         runner.impact(scope, entity)

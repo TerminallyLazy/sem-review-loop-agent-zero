@@ -43,6 +43,9 @@ MAX_MANUAL_FILES = 20
 MAX_MANUAL_BYTES = 2 * 1024 * 1024
 MAX_CONTEXT_TOKEN_BUDGET = 32_000
 MIN_CONTEXT_TOKEN_BUDGET = 1_000
+MAX_QUERY_NODES = 4096
+MAX_QUERY_DEPTH = 8
+MAX_QUERY_STRING_CHARS = 200_000
 
 LOCAL_ENV = {
     "SEM_LOCAL": "1",
@@ -89,6 +92,39 @@ class CommandResult:
     returncode: int
     stdout: str
     stderr: str
+
+
+def _bounded_query_json(
+    value: object,
+    *,
+    depth: int = MAX_QUERY_DEPTH,
+    state: dict[str, int] | None = None,
+) -> bool:
+    tracker = state or {"nodes": 0, "chars": 0}
+    tracker["nodes"] += 1
+    if tracker["nodes"] > MAX_QUERY_NODES or depth < 0:
+        return False
+    if isinstance(value, str):
+        tracker["chars"] += len(value.encode("utf-8", errors="replace"))
+        return (
+            len(value.encode("utf-8", errors="replace")) <= MAX_QUERY_STRING_CHARS
+            and tracker["chars"] <= MAX_QUERY_STRING_CHARS
+        )
+    if value is None or isinstance(value, (bool, int, float)):
+        return True
+    if isinstance(value, list):
+        return len(value) <= MAX_QUERY_NODES and all(
+            _bounded_query_json(item, depth=depth - 1, state=tracker)
+            for item in value
+        )
+    if isinstance(value, dict):
+        return len(value) <= MAX_QUERY_NODES and all(
+            isinstance(key, str)
+            and len(key) <= 256
+            and _bounded_query_json(item, depth=depth - 1, state=tracker)
+            for key, item in value.items()
+        )
+    return False
 
 
 def _kill_process_tree(process: subprocess.Popen[bytes]) -> None:
@@ -785,14 +821,14 @@ class SemRunner:
             )
         else:
             raise SemCommandError("Unsupported semantic diff mode.")
-        return [
-            "diff",
-            *mode_args,
-            "--format",
-            "json",
-            "--",
-            self._sem_watched_pathspec(scope),
-        ]
+        args = ["diff", *mode_args, "--format", "json"]
+        watched_pathspec = self._sem_watched_pathspec(scope)
+        # sem v0.21.0 treats an explicit ``-- .`` as a literal path named
+        # ``.`` and silently returns an empty diff. Omitting the pathspec is
+        # the supported whole-repository form.
+        if watched_pathspec != ".":
+            args.extend(["--", watched_pathspec])
+        return args
 
     def _json_command(
         self,
@@ -916,6 +952,10 @@ class SemRunner:
         if not isinstance(payload, dict):
             raise SemCommandError(
                 "sem query result must be a JSON object."
+            )
+        if not _bounded_query_json(payload):
+            raise SemCommandError(
+                "sem query result exceeded its bounded response schema."
             )
         return payload
 

@@ -1,0 +1,14 @@
+<div
+  class="right-canvas-surface-panel sem-review-canvas-surface"
+  data-surface-id="sem_review_loop"
+  :class="{
+    'is-active': $store.rightCanvas?.isSurfaceVisible('sem_review_loop'),
+    'is-mounted': $store.rightCanvas?.isSurfaceRendered('sem_review_loop')
+  }"
+  :aria-hidden="(!$store.rightCanvas?.isSurfaceVisible('sem_review_loop')).toString()"
+>
+  <x-component
+    path="/plugins/sem_review_loop/webui/panel.html"
+    mode="canvas"
+  ></x-component>
+</div>
