@@ -107,7 +107,7 @@
                   <div>
                     <div class="sem-review-group-title" x-text="group.path"></div>
                     <template x-for="change in group.changes" :key="change.entity_id">
-                      <button type="button" class="sem-review-change" :class="{ 'is-selected': $store.semReviewLoop.selectedEntityId === change.entity_id }" @click="$store.semReviewLoop.selectEntity(change.entity_id)">
+                      <button type="button" class="sem-review-change" :class="{ 'is-selected': $store.semReviewLoop.selectedEntityId === change.entity_id }" @click="$store.semReviewLoop.selectEntity(change.entity_id); $store.semReviewLoop.activeTab = 'review'">
                         <span><span class="sem-review-change-name" x-text="change.entity_name || change.entity_id"></span><span class="sem-review-change-meta"><span x-text="change.change_type"></span><span x-text="`${change.start_line ?? '—'}–${change.end_line ?? '—'}`"></span></span></span>
                         <span class="sem-review-badge" :class="{ 'is-structural': change.structural }" x-text="change.structural ? 'structural' : 'cosmetic'"></span>
                       </button>
