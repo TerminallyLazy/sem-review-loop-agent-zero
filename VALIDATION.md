@@ -45,3 +45,7 @@ overwriting user changes.
   all passed.
 - The plugin launcher completed a native MCP `initialize` handshake with the
   closed local environment and exited cleanly after termination.
+- Agent Zero served the compatibility worktree on `127.0.0.1:50124`:
+  `/api/health`, `panel.html`, and `sem-review-store.js` each returned HTTP
+  200; the server was stopped and the port was confirmed closed. This is an
+  HTTP/static smoke check, not a visual browser acceptance run.
