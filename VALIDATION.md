@@ -29,3 +29,18 @@ the MCP `initialize` handshake with `SEM_NO_NETWORK=1` and telemetry disabled.
 The managed install is reversible: it stores only under the plugin-owned
 `.data/` directory. Uninstall preserves a drifted project MCP entry instead of
 overwriting user changes.
+
+## Observed local results (2026-07-31, macOS arm64)
+
+- Plugin suite: `598 passed, 1 skipped` (the skip is the opt-in real-binary
+  test when `SEM_TEST_BINARY` is unset).
+- Pinned integration: `1 passed`, including working/staged diffs and native
+  context/impact queries.
+- Pinned executable: `sem 0.21.0`, SHA-256
+  `818c7af64e71b71c37dee84ad5096b05ea09c9b0401828f818c685d3da13b81d`.
+- Framework regressions: WebUI extension surfaces `45 passed`, component
+  loader `1 passed`, projects `10 passed`, MCP handler `14 passed`.
+- `compileall`, JavaScript syntax checks, and the Agent Zero plugin validator
+  all passed.
+- The plugin launcher completed a native MCP `initialize` handshake with the
+  closed local environment and exited cleanly after termination.
