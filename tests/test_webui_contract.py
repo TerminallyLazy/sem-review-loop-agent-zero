@@ -501,6 +501,22 @@ def test_shell_is_local_bounded_and_structurally_polished() -> None:
     assert "overflow-wrap: anywhere" in documents["panel"]
 
 
+def test_store_formats_root_scope_and_colored_line_diff() -> None:
+    run_store_behavior(
+        """
+model.payload = payload("project-a", 1, "fingerprint-a");
+assert(model.watchedLabel() === "Project root", "root scope should be readable");
+model.detail = {
+  before_content: "keep\\nold value",
+  after_content: "keep\\nnew value",
+};
+const lines = model.detailDiffLines();
+assert(lines.some((line) => line.kind === "removed" && line.text === "old value"), "removed line was not marked");
+assert(lines.some((line) => line.kind === "added" && line.text === "new value"), "added line was not marked");
+"""
+    )
+
+
 def test_late_mcp_preview_cannot_cross_context_or_project() -> None:
     run_store_behavior(
         """

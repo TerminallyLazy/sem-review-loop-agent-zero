@@ -32,9 +32,9 @@ overwriting user changes.
 
 ## Observed local results (2026-07-31, macOS arm64)
 
-- Plugin suite: `598 passed, 1 skipped` (the skip is the opt-in real-binary
+- Plugin suite: `599 passed, 1 skipped` (the skip is the opt-in real-binary
   test when `SEM_TEST_BINARY` is unset).
-- Plugin suite with the pinned binary enabled: `599 passed`.
+- Plugin suite with the pinned binary enabled: `600 passed`.
 - Pinned integration: `1 passed`, including working/staged diffs and native
   context/impact queries.
 - Pinned executable: `sem 0.21.0`, SHA-256
@@ -47,5 +47,18 @@ overwriting user changes.
   closed local environment and exited cleanly after termination.
 - Agent Zero served the compatibility worktree on `127.0.0.1:50124`:
   `/api/health`, `panel.html`, and `sem-review-store.js` each returned HTTP
-  200; the server was stopped and the port was confirmed closed. This is an
-  HTTP/static smoke check, not a visual browser acceptance run.
+  200; the server was stopped and the port was confirmed closed.
+- Browser acceptance used the synthetic `SEM Review Visual Check` project:
+  the right-side drawer rendered `Project root`, one structural `authorize`
+  change, a review card, wrapped context output, and red/green semantic diff
+  lines. Selecting the change opened the Review tab.
+- Project MCP acceptance used the same project: Preview -> Confirm -> Enable
+  changed the drawer to `MCP armed`; the native stdio server returned the
+  `2024-11-05` initialize handshake, `sem_diff` returned one modified entity,
+  and focused `sem_context`/`sem_impact` calls returned local results. The
+  managed entry carried `SEM_NO_NETWORK=1`, `SEM_NO_TELEMETRY=1`, and disabled
+  `sem_entities`, `sem_blame`, and `sem_log`. Disable returned the drawer to
+  `MCP off` and removed the managed project entry.
+- No model-backed Agent Zero coding task was run in this environment because
+  the selected model had no API key; the local result proves the review/MCP
+  loop, not an empirical improvement benchmark for coding quality.

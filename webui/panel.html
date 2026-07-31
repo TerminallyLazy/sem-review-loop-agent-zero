@@ -46,9 +46,19 @@
     .sem-review-detail-pane { min-width: 0; border: 1px solid var(--color-border, #343941); background: #101216; }
     .sem-review-detail-pane header { padding: .4rem .55rem; color: var(--color-text-secondary, #939aa5); font-size: .7rem; text-transform: uppercase; }
     .sem-review-detail-pane pre { max-height: 18rem; margin: 0; overflow: auto; padding: .65rem; color: #cbd2dc; font: .72rem/1.45 var(--font-family-mono, monospace); white-space: pre-wrap; overflow-wrap: anywhere; }
+    .sem-review-diff { min-width: 0; max-width: 100%; overflow: hidden; border: 1px solid var(--color-border, #343941); background: #101216; }
+    .sem-review-diff-title { padding: .45rem .6rem; color: var(--color-text-secondary, #939aa5); font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    .sem-review-diff-lines { max-height: 24rem; overflow: auto; padding: .35rem 0; font: .72rem/1.5 var(--font-family-mono, monospace); }
+    .sem-review-diff-line { display: grid; grid-template-columns: 1.25rem minmax(0, 1fr); min-width: 0; padding: 0 .6rem; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
+    .sem-review-diff-line > code { min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
+    .sem-review-diff-line.is-removed { color: #ffd2d2; background: color-mix(in srgb, #d66a6a 18%, #101216); }
+    .sem-review-diff-line.is-added { color: #c9f4d0; background: color-mix(in srgb, #5fae73 18%, #101216); }
+    .sem-review-diff-line.is-same { color: #cbd2dc; }
+    .sem-review-diff-marker { color: currentColor; font-weight: 800; user-select: none; }
     .sem-review-card { padding: .7rem; }
     .sem-review-card + .sem-review-card { margin-top: .55rem; }
     .sem-review-card p { margin: .4rem 0 0; color: var(--color-text-secondary, #939aa5); overflow-wrap: anywhere; }
+    .sem-review-card pre { max-width: 100%; max-height: 18rem; box-sizing: border-box; margin: .6rem 0 0; overflow: auto; padding: .6rem; color: #cbd2dc; background: #101216; font: .72rem/1.45 var(--font-family-mono, monospace); white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
     .sem-review-card-actions { display: flex; justify-content: flex-end; gap: .45rem; margin-top: .65rem; }
     .sem-review-error { margin-bottom: .7rem; padding: .55rem .7rem; border-left: 3px solid var(--color-error, #c96c6c); color: var(--color-error, #c96c6c); background: color-mix(in srgb, var(--color-error, #c96c6c) 10%, transparent); overflow-wrap: anywhere; }
     .sem-review-loading { display: inline-flex; align-items: center; gap: .4rem; color: var(--color-text-secondary, #939aa5); font-size: .78rem; }
@@ -70,7 +80,7 @@
             <div class="sem-review-heading">
               <span class="sem-review-kicker">Local semantic ledger</span>
               <strong>Semantic Review</strong>
-              <small x-text="$store.semReviewLoop.payload?.review?.watched_relative || 'Select a project chat' "></small>
+              <small x-text="$store.semReviewLoop.watchedLabel()"></small>
             </div>
             <div class="sem-review-actions">
               <span class="sem-review-pill" :class="{ 'is-on': $store.semReviewLoop.payload?.review?.mcp_enabled }">
@@ -121,7 +131,7 @@
               <template x-if="$store.semReviewLoop.selectedChange()">
                 <div class="sem-review-detail">
                   <div class="sem-review-card"><div class="sem-review-card-title" x-text="$store.semReviewLoop.selectedChange()?.entity_name"></div><div class="sem-review-card-meta"><span x-text="$store.semReviewLoop.selectedChange()?.file_path"></span><span x-text="$store.semReviewLoop.selectedChange()?.change_type"></span><span x-text="$store.semReviewLoop.snapshot()?.fingerprint"></span></div><div class="sem-review-inline-actions"><button type="button" class="sem-review-button" @click="$store.semReviewLoop.loadDetail()">Load detail</button><button type="button" class="sem-review-button" @click="$store.semReviewLoop.loadContext()">Context</button><button type="button" class="sem-review-button" @click="$store.semReviewLoop.loadImpact()">Impact</button></div></div>
-                  <template x-if="$store.semReviewLoop.detail"><div class="sem-review-detail-grid"><div class="sem-review-detail-pane"><header>Before</header><pre x-text="$store.semReviewLoop.detail.before_content"></pre></div><div class="sem-review-detail-pane"><header>After</header><pre x-text="$store.semReviewLoop.detail.after_content"></pre></div></div></template>
+                  <template x-if="$store.semReviewLoop.detail"><div class="sem-review-diff" aria-label="Semantic diff"><div class="sem-review-diff-title">Semantic diff</div><div class="sem-review-diff-lines"><template x-for="(line, index) in $store.semReviewLoop.detailDiffLines()" :key="`${index}-${line.kind}`"><div class="sem-review-diff-line" :class="`is-${line.kind}`"><span class="sem-review-diff-marker" aria-hidden="true" x-text="line.kind === 'removed' ? '−' : line.kind === 'added' ? '+' : ' ' "></span><code x-text="line.text"></code></div></template></div></div></template>
                   <template x-if="$store.semReviewLoop.contextResult"><div class="sem-review-card"><div class="sem-review-card-title">Entity context</div><pre x-text="$store.semReviewLoop.formatResult($store.semReviewLoop.contextResult)"></pre></div></template>
                   <template x-if="$store.semReviewLoop.impactResult"><div class="sem-review-card"><div class="sem-review-card-title">Impact</div><pre x-text="$store.semReviewLoop.formatResult($store.semReviewLoop.impactResult)"></pre></div></template>
                 </div>

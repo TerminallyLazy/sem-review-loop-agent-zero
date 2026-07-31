@@ -346,6 +346,62 @@ const model = {
     );
   },
 
+  watchedLabel() {
+    const watched = String(this.payload?.review?.watched_relative || "").trim();
+    if (!watched || watched === ".") return "Project root";
+    return watched;
+  },
+
+  detailDiffLines() {
+    const before = String(this.detail?.before_content || "").split(/\r?\n/);
+    const after = String(this.detail?.after_content || "").split(/\r?\n/);
+    const maxCells = 160_000;
+    if (before.length * after.length > maxCells) {
+      return [
+        ...before.map((text) => ({ kind: "removed", text })),
+        ...after.map((text) => ({ kind: "added", text })),
+      ];
+    }
+
+    const table = Array.from(
+      { length: before.length + 1 },
+      () => new Uint16Array(after.length + 1),
+    );
+    for (let beforeIndex = before.length - 1; beforeIndex >= 0; beforeIndex -= 1) {
+      for (let afterIndex = after.length - 1; afterIndex >= 0; afterIndex -= 1) {
+        table[beforeIndex][afterIndex] = before[beforeIndex] === after[afterIndex]
+          ? table[beforeIndex + 1][afterIndex + 1] + 1
+          : Math.max(table[beforeIndex + 1][afterIndex], table[beforeIndex][afterIndex + 1]);
+      }
+    }
+
+    const lines = [];
+    let beforeIndex = 0;
+    let afterIndex = 0;
+    while (beforeIndex < before.length && afterIndex < after.length) {
+      if (before[beforeIndex] === after[afterIndex]) {
+        lines.push({ kind: "same", text: before[beforeIndex] });
+        beforeIndex += 1;
+        afterIndex += 1;
+      } else if (table[beforeIndex + 1][afterIndex] >= table[beforeIndex][afterIndex + 1]) {
+        lines.push({ kind: "removed", text: before[beforeIndex] });
+        beforeIndex += 1;
+      } else {
+        lines.push({ kind: "added", text: after[afterIndex] });
+        afterIndex += 1;
+      }
+    }
+    while (beforeIndex < before.length) {
+      lines.push({ kind: "removed", text: before[beforeIndex] });
+      beforeIndex += 1;
+    }
+    while (afterIndex < after.length) {
+      lines.push({ kind: "added", text: after[afterIndex] });
+      afterIndex += 1;
+    }
+    return lines;
+  },
+
   _revisionIdentity(payload = this.payload) {
     const value = (
       payload?.review?.revision
