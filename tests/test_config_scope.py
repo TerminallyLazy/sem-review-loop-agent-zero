@@ -20,6 +20,9 @@ from usr.plugins.sem_review_loop.helpers.fingerprints import (
     diff_fingerprint,
     working_fingerprint,
 )
+from usr.plugins.sem_review_loop.helpers.working_tree import (
+    collect_working_files,
+)
 from usr.plugins.sem_review_loop.helpers.project_scope import (
     ProjectScopeError,
     literal_watched_pathspec,
@@ -227,6 +230,25 @@ def test_working_fingerprint_tracks_exact_diff_bytes(tmp_path: Path) -> None:
     source.write_text("value = 3\n", encoding="utf-8")
     second = working_fingerprint(tmp_path, ".")
     assert first != second
+
+
+def test_working_fingerprint_tracks_untracked_tool_files_and_content(
+    tmp_path: Path,
+) -> None:
+    initialized_repo(tmp_path)
+    tool_file = tmp_path / "tool_created.py"
+    tool_file.write_text("value = 1\n", encoding="utf-8")
+
+    first = working_fingerprint(tmp_path, ".")
+    tool_file.write_text("value = 2\n", encoding="utf-8")
+    second = working_fingerprint(tmp_path, ".")
+
+    assert first != second
+    records = collect_working_files(tmp_path, ".")
+    assert [record["filePath"] for record in records] == ["tool_created.py"]
+    assert records[0]["status"] == "added"
+    assert records[0]["beforeContent"] is None
+    assert records[0]["afterContent"] == "value = 2\n"
 
 
 def test_colon_prefixed_watched_directory_is_a_literal_scope(

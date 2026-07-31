@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any, ContextManager
 
 from usr.plugins.sem_review_loop.helpers.sem_types import (
     MAX_ENTITY_ID_BYTES,
+    MAX_ENTITY_NAME_BYTES,
     MAX_OUTPUT_BYTES,
     DiffRequest,
     DiffSnapshot,
@@ -24,6 +25,11 @@ from usr.plugins.sem_review_loop.helpers.sem_types import (
     sem_v021_change_counters,
     snapshot_from_parsed,
     validate_relative_posix_path,
+)
+from usr.plugins.sem_review_loop.helpers.working_tree import (
+    WorkingTreeError,
+    canonical_working_payload,
+    collect_working_files,
 )
 
 if TYPE_CHECKING:
@@ -868,10 +874,31 @@ class SemRunner:
         request: DiffRequest,
         fingerprint: str,
     ) -> DiffSnapshot:
+        stdin: str | None = None
+        # ``sem diff`` intentionally ignores untracked files. When the
+        # project is a Git worktree and the current scope contains an added
+        # file, feed the complete working set through SEM's bounded stdin
+        # mode so the normal Working tree view includes tool-created files as
+        # well as tracked edits. Non-Git synthetic projects retain the native
+        # command path used by older integrations.
+        if request.mode == "working" and (scope.project_root / ".git").exists():
+            try:
+                working_files = collect_working_files(
+                    scope.project_root,
+                    scope.watched_relative,
+                )
+            except WorkingTreeError as exc:
+                raise SemCommandError(str(exc)) from exc
+            if any(record["status"] == "added" for record in working_files):
+                stdin = canonical_working_payload(working_files)
+
         payload = self._json_command(
             scope,
-            self._diff_args(scope, request),
+            ["diff", "--stdin", "--format", "json"]
+            if stdin is not None
+            else self._diff_args(scope, request),
             timeout=DIFF_TIMEOUT_SECONDS,
+            stdin=stdin,
         )
         return snapshot_from_parsed(
             _parse_filtered_diff(payload),
@@ -939,6 +966,29 @@ class SemRunner:
             raise SemCommandError("Selected entity metadata is invalid.")
         return value
 
+    def _entity_name(self, entity: EntityRef) -> str:
+        """Return the sem-resolvable name, not the diff display identity.
+
+        ``sem diff`` may decorate an entity ID with change metadata (for
+        example ``@added@L1-30``).  Those IDs are useful for correlating the
+        review card and detail payload, but they are not accepted by the
+        entity-query commands.  Context and impact must resolve the stable
+        entity name in its file instead.
+        """
+
+        value = entity.entity_name
+        if (
+            not isinstance(value, str)
+            or not value.strip()
+            or any(
+                ord(character) < 32 or ord(character) == 127
+                for character in value
+            )
+            or _encoded_size(value, "entity name") > MAX_ENTITY_NAME_BYTES
+        ):
+            raise SemCommandError("Selected entity metadata is invalid.")
+        return value
+
     def _query(
         self,
         scope: ProjectScope,
@@ -977,13 +1027,15 @@ class SemRunner:
             scope,
             [
                 "context",
-                "--entity-id",
-                self._entity_id(entity),
                 "--file",
                 self._entity_file(scope, entity),
                 "--budget",
                 str(token_budget),
+                "--hops",
+                "1",
                 "--json",
+                "--",
+                self._entity_name(entity),
             ],
         )
 
@@ -996,12 +1048,12 @@ class SemRunner:
             scope,
             [
                 "impact",
-                "--entity-id",
-                self._entity_id(entity),
                 "--file",
                 self._entity_file(scope, entity),
                 "--depth",
                 "2",
                 "--json",
+                "--",
+                self._entity_name(entity),
             ],
         )

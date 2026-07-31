@@ -10,7 +10,9 @@ from usr.plugins.sem_review_loop.helpers.installer import (
 )
 
 
-def install(**kwargs: Any) -> bool:
+def maintain(**kwargs: Any) -> bool:
+    """Validate or repair the pinned local sem binary during lifecycle work."""
+
     del kwargs
     try:
         ensure_installed()
@@ -18,14 +20,17 @@ def install(**kwargs: Any) -> bool:
         PrintStyle.warning(
             "sem_review_loop installed without a managed sem binary on this "
             "platform. Configure an absolute custom sem 0.21.0 binary, then "
-            f"use Run or first use to validate it: {exc}"
+            f"use the plugin or first semantic review to validate it: {exc}"
         )
     return True
 
 
+def install(**kwargs: Any) -> bool:
+    return maintain(**kwargs)
+
+
 def pre_update(**kwargs: Any) -> bool:
-    del kwargs
-    return True
+    return maintain(**kwargs)
 
 
 async def uninstall(**kwargs: Any) -> bool:

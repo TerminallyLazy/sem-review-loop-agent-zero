@@ -32,9 +32,9 @@ overwriting user changes.
 
 ## Observed local results (2026-07-31, macOS arm64)
 
-- Plugin suite: `599 passed, 1 skipped` (the skip is the opt-in real-binary
+- Plugin suite: `601 passed, 1 skipped` (the skip is the opt-in real-binary
   test when `SEM_TEST_BINARY` is unset).
-- Plugin suite with the pinned binary enabled: `600 passed`.
+- Plugin suite with the pinned binary enabled: `601 passed`.
 - Pinned integration: `1 passed`, including working/staged diffs and native
   context/impact queries.
 - Pinned executable: `sem 0.21.0`, SHA-256

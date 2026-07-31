@@ -257,6 +257,79 @@ def test_project_root_diff_still_excludes_agent_zero_metadata(
     ]
 
 
+def test_working_diff_uses_stdin_for_untracked_tool_files(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    subprocess.run(
+        ["git", "init", "-q"],
+        cwd=project,
+        check=True,
+        capture_output=True,
+        shell=False,
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "synthetic@example.invalid"],
+        cwd=project,
+        check=True,
+        capture_output=True,
+        shell=False,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Synthetic Test User"],
+        cwd=project,
+        check=True,
+        capture_output=True,
+        shell=False,
+    )
+    (project / "tracked.py").write_text("value = 1\n", encoding="utf-8")
+    subprocess.run(
+        ["git", "add", "tracked.py"],
+        cwd=project,
+        check=True,
+        capture_output=True,
+        shell=False,
+    )
+    subprocess.run(
+        ["git", "commit", "-qm", "base"],
+        cwd=project,
+        check=True,
+        capture_output=True,
+        shell=False,
+    )
+    (project / "tracked.py").write_text("value = 2\n", encoding="utf-8")
+    (project / "tool_created.py").write_text(
+        "def generated():\n    return 3\n",
+        encoding="utf-8",
+    )
+    scope = make_scope("ctx", "project", project, ".")
+    calls: list[dict[str, object]] = []
+
+    def execute(**kwargs: object) -> CommandResult:
+        calls.append(kwargs)
+        return CommandResult(0, json.dumps(EMPTY_DIFF), "")
+
+    snapshot = SemRunner(
+        tmp_path / "cache",
+        execute=execute,
+        binary_lease=fixed_binary_lease,
+    ).diff(scope, DiffRequest("working"), "fingerprint")
+
+    assert snapshot.request == DiffRequest("working")
+    assert calls[0]["args"] == [
+        "/opt/sem",
+        "diff",
+        "--stdin",
+        "--format",
+        "json",
+    ]
+    stdin = str(calls[0]["stdin"])
+    assert "tool_created.py" in stdin
+    assert "tracked.py" in stdin
+    assert "generated" in stdin
+
+
 @pytest.mark.parametrize(
     "watched_name",
     [":scope", "src*", "src[1]"],
@@ -1155,25 +1228,65 @@ def test_context_and_impact_use_stable_entity_metadata(
     assert calls[0]["args"] == [
         "/opt/sem",
         "context",
-        "--entity-id",
-        entity.entity_id,
         "--file",
         "src/module.py",
         "--budget",
         "4000",
+        "--hops",
+        "1",
         "--json",
+        "--",
+        entity.entity_name,
     ]
     assert calls[1]["args"] == [
         "/opt/sem",
         "impact",
-        "--entity-id",
-        entity.entity_id,
         "--file",
         "src/module.py",
         "--depth",
         "2",
         "--json",
+        "--",
+        entity.entity_name,
     ]
+
+
+def test_entity_queries_ignore_diff_only_entity_id_suffix(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    source = project / "module.py"
+    project.mkdir()
+    source.write_text("def authorize():\n    return True\n", encoding="utf-8")
+    scope = make_scope("ctx", "project", project, ".")
+    calls: list[dict[str, object]] = []
+
+    def execute(**kwargs: object) -> CommandResult:
+        calls.append(kwargs)
+        return CommandResult(0, '{"ok":true}', "")
+
+    runner = SemRunner(
+        tmp_path / "cache",
+        execute=execute,
+        binary_lease=fixed_binary_lease,
+    )
+    entity = EntityRef(
+        entity_id="module.py::function::authorize@added@L1-2",
+        entity_name="authorize",
+        entity_type="function",
+        file_path="module.py",
+    )
+
+    assert runner.context(scope, entity, 4_000) == {"ok": True}
+    assert runner.impact(scope, entity) == {"ok": True}
+    assert all(
+        "--entity-id" not in list(call["args"])
+        for call in calls
+    )
+    assert all(
+        list(call["args"])[-1] == "authorize"
+        for call in calls
+    )
 
 
 @pytest.mark.parametrize("budget", [999, 32_001, True])

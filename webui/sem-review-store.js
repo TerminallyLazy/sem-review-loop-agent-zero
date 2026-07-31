@@ -13,6 +13,7 @@ const REVISION_EVENT_FIELDS = Object.freeze([
   "revision",
 ]);
 const REVISION_DELAY_MS = 120;
+const REALTIME_POLL_MS = 2000;
 const MAX_DIAGNOSTIC_CHARS = 500;
 const MAX_FORMATTED_RESULT_CHARS = 200000;
 const MAX_RESPONSE_ITEMS = 10000;
@@ -308,6 +309,8 @@ const model = {
   _revisionOff: null,
   _revisionTimer: null,
   _revisionTimerBinding: null,
+  _realtimeTimer: null,
+  _realtimeTimerBinding: null,
   _lifecycleSeq: 0,
   _subscriptionSeq: 0,
   _requestSeq: 0,
@@ -350,6 +353,30 @@ const model = {
     const watched = String(this.payload?.review?.watched_relative || "").trim();
     if (!watched || watched === ".") return "Project root";
     return watched;
+  },
+
+  liveStateLabel() {
+    return this._revisionOff ? "Live updates" : "Live updates pending";
+  },
+
+  mcpToolsLabel() {
+    const tools = Array.isArray(this.payload?.mcp?.tools)
+      ? this.payload.mcp.tools
+        .filter((value) => typeof value === "string" && value.trim())
+        .slice(0, 3)
+      : [];
+    return tools.length ? tools.join(", ") : "not verified";
+  },
+
+  hasCurrentResolvedCheckpoint() {
+    const checkpoint = this.payload?.review?.checkpoint;
+    const snapshot = this.snapshot();
+    return Boolean(
+      checkpoint
+      && (checkpoint.outcome === "pass" || checkpoint.outcome === "repaired")
+      && snapshot
+      && checkpoint.fingerprint === snapshot.fingerprint,
+    );
   },
 
   detailDiffLines() {
@@ -497,6 +524,55 @@ const model = {
     }
     this._revisionTimer = null;
     this._revisionTimerBinding = null;
+  },
+
+  _clearRealtimeTimer() {
+    if (this._realtimeTimer !== null) {
+      globalThis.clearTimeout(this._realtimeTimer);
+    }
+    this._realtimeTimer = null;
+    this._realtimeTimerBinding = null;
+  },
+
+  _realtimeBindingIsCurrent(binding) {
+    return Boolean(
+      binding
+      && this._mounted
+      && binding.lifecycleSeq === this._lifecycleSeq
+      && binding.subscriptionSeq === this._subscriptionSeq
+      && binding.rootToken === this._root
+      && binding.contextId === String(this.contextId || ""),
+    );
+  },
+
+  _scheduleRealtimePoll() {
+    this._clearRealtimeTimer();
+    if (!this._mounted || !this.contextId || !this._revisionOff) return;
+    const binding = {
+      lifecycleSeq: this._lifecycleSeq,
+      subscriptionSeq: this._subscriptionSeq,
+      rootToken: this._root,
+      contextId: String(this.contextId || ""),
+    };
+    this._realtimeTimerBinding = binding;
+    this._realtimeTimer = globalThis.setTimeout(async () => {
+      if (this._realtimeTimerBinding !== binding) return;
+      this._realtimeTimer = null;
+      this._realtimeTimerBinding = null;
+      if (!this._realtimeBindingIsCurrent(binding)) return;
+      try {
+        // The WebSocket revision event is the fast path. This bounded status
+        // heartbeat is the fallback for editor integrations that do not emit
+        // an event, and never runs a sem process by itself.
+        if (!this.loading && !this.busy) {
+          await this.refreshStatus({ keepSelection: true, notify: false });
+        }
+      } finally {
+        if (this._realtimeBindingIsCurrent(binding)) {
+          this._scheduleRealtimePoll();
+        }
+      }
+    }, REALTIME_POLL_MS);
   },
 
   _revisionTimerBindingIsCurrent(binding) {
@@ -725,6 +801,7 @@ const model = {
           return false;
         }
       }
+      this._scheduleRealtimePoll();
       return true;
     } catch (error) {
       this._rollbackLifecycle(lifecycleSeq, rootToken);
@@ -765,6 +842,7 @@ const model = {
           return false;
         }
       }
+      this._scheduleRealtimePoll();
       return true;
     } catch (error) {
       this._rollbackLifecycle(lifecycleSeq, rootToken);
@@ -785,6 +863,7 @@ const model = {
     this.loading = false;
     this._resetBusy();
     this._clearRevisionTimer();
+    this._clearRealtimeTimer();
     this._detachRevisionSubscription();
     this.contextId = "";
     this.payload = null;

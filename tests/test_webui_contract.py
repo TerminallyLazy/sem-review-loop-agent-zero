@@ -288,6 +288,11 @@ def test_panel_uses_store_gate_and_mount_cleanup_contract() -> None:
     assert '<template x-if="$store.semReviewLoop">' in panel
     assert 'x-create="$store.semReviewLoop.onMount' in panel
     assert 'x-destroy="$store.semReviewLoop.cleanup()"' in panel
+    assert "Working tree + tool files" in panel
+    assert "bounded untracked files" in panel
+    assert "Local-only" in panel
+    assert "hasCurrentResolvedCheckpoint" in panel
+    assert "Approved lessons are project-scoped advisory cards" in panel
     assert "x-html" not in panel
     assert "innerHTML" not in panel
 
@@ -303,6 +308,8 @@ def test_store_uses_shared_api_websocket_and_notifications() -> None:
     assert "callJsonApi" in store
     assert "notificationStore" in store
     assert "fetch(" not in store
+    assert "REALTIME_POLL_MS = 2000" in store
+    assert "_scheduleRealtimePoll" in store
 
 
 def test_store_exposes_complete_task_twelve_action_contract() -> None:
@@ -340,6 +347,7 @@ def test_store_exposes_complete_task_twelve_action_contract() -> None:
     )
     for method in (*actions, *selectors):
         assert re.search(rf"\n  (?:async )?{method}\(", store), method
+    assert "hasCurrentResolvedCheckpoint" in store
     for endpoint in (
         "sem_status",
         "sem_diff",
@@ -513,6 +521,44 @@ model.detail = {
 const lines = model.detailDiffLines();
 assert(lines.some((line) => line.kind === "removed" && line.text === "old value"), "removed line was not marked");
 assert(lines.some((line) => line.kind === "added" && line.text === "new value"), "added line was not marked");
+"""
+    )
+
+
+def test_store_requires_exact_resolved_checkpoint_for_lesson_approval() -> None:
+    run_store_behavior(
+        """
+model.contextId = "ctx-a";
+model.payload = payload("project-a", 1, "fingerprint-a");
+assert(
+  model.hasCurrentResolvedCheckpoint() === false,
+  "missing checkpoint was treated as resolved",
+);
+model.payload.review.checkpoint = {
+  fingerprint: "fingerprint-other",
+  outcome: "pass",
+  structural_entities: ["entity-1"],
+  findings: [],
+};
+assert(
+  model.hasCurrentResolvedCheckpoint() === false,
+  "checkpoint from another fingerprint was treated as current",
+);
+model.payload.review.checkpoint = {
+  fingerprint: "fingerprint-a",
+  outcome: "unresolved",
+  structural_entities: ["entity-1"],
+  findings: [],
+};
+assert(
+  model.hasCurrentResolvedCheckpoint() === false,
+  "unresolved checkpoint was treated as resolved",
+);
+model.payload.review.checkpoint.outcome = "repaired";
+assert(
+  model.hasCurrentResolvedCheckpoint() === true,
+  "current repaired checkpoint was not accepted",
+);
 """
     )
 

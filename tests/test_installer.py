@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from usr.plugins.sem_review_loop import execute, hooks
+from usr.plugins.sem_review_loop import hooks
 from usr.plugins.sem_review_loop.helpers import (
     installer,
     maintenance,
@@ -852,104 +852,6 @@ def test_maintenance_prints_one_bounded_json_result(
     assert 0 < len(error["error"]) <= maintenance.MAX_ERROR_CHARS
 
 
-def test_execute_entrypoint_runs_module_from_framework_root(
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    calls: list[dict[str, object]] = []
-
-    def fake_run_maintenance(
-        args: list[str],
-        cwd: Path,
-    ) -> tuple[int, bytes, bytes, bool]:
-        calls.append({"args": args, "cwd": cwd})
-        return (
-            0,
-            b'{"ok":true,"path":"/managed/sem","version":"0.21.0"}\n',
-            b"",
-            False,
-        )
-
-    monkeypatch.setattr(
-        execute,
-        "_run_maintenance",
-        fake_run_maintenance,
-    )
-    assert execute.main() == 0
-    assert json.loads(capsys.readouterr().out) == {
-        "ok": True,
-        "path": "/managed/sem",
-        "version": "0.21.0",
-    }
-    assert calls == [{
-        "args": [
-            sys.executable,
-            "-m",
-            "usr.plugins.sem_review_loop.helpers.maintenance",
-        ],
-        "cwd": execute.FRAMEWORK_ROOT,
-    }]
-
-
-@pytest.mark.skipif(os.name == "nt", reason="POSIX process-group regression")
-def test_execute_timeout_terminates_process_tree_and_prints_one_bounded_json(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    marker = tmp_path / "child.pid"
-    script = tmp_path / "blocking_maintenance.py"
-    script.write_text(
-        "import signal\n"
-        "import subprocess\n"
-        "import sys\n"
-        "import time\n"
-        "from pathlib import Path\n"
-        "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
-        "child = subprocess.Popen([\n"
-        "    sys.executable,\n"
-        "    '-c',\n"
-        "    'import signal,time; signal.signal(signal.SIGTERM, "
-        "signal.SIG_IGN); time.sleep(30)',\n"
-        "])\n"
-        f"Path({str(marker)!r}).write_text(str(child.pid), encoding='utf-8')\n"
-        "while True:\n"
-        "    time.sleep(1)\n",
-        encoding="utf-8",
-    )
-    monkeypatch.setattr(
-        execute,
-        "_maintenance_command",
-        lambda: [sys.executable, str(script)],
-    )
-    monkeypatch.setattr(execute, "MAINTENANCE_TIMEOUT_SECONDS", 0.5)
-    monkeypatch.setattr(
-        execute,
-        "PROCESS_TERMINATION_GRACE_SECONDS",
-        0.1,
-    )
-
-    started = time.monotonic()
-    assert execute.main() == 1
-    assert time.monotonic() - started < 2
-    output = capsys.readouterr().out.splitlines()
-    assert len(output) == 1
-    payload = json.loads(output[0])
-    assert payload["ok"] is False
-    assert "timed out" in payload["error"]
-    assert len(output[0].encode("utf-8")) <= execute.MAX_JSON_BYTES
-
-    child_pid = int(marker.read_text(encoding="utf-8"))
-    status = subprocess.run(
-        ["ps", "-p", str(child_pid), "-o", "state="],
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=2,
-    ).stdout.strip()
-    assert not status or status.startswith("Z")
-
-
 def test_hooks_install_and_async_uninstall(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -964,6 +866,7 @@ def test_hooks_install_and_async_uninstall(
     assert hooks.install(ignored=True)
     assert events == ["install"]
     assert hooks.pre_update(ignored=True)
+    assert events == ["install", "install"]
 
     class FakeManager:
         async def disable_all_managed(self) -> list[str]:
@@ -993,12 +896,12 @@ def test_hooks_install_and_async_uninstall(
     import asyncio
 
     assert asyncio.run(hooks.uninstall(ignored=True))
-    assert events == ["install", "disable", "cleanup"]
+    assert events == ["install", "install", "disable", "cleanup"]
     assert len(warnings) == 1
     assert "project-a, project-b" in warnings[0]
 
 
-def test_install_hook_defers_unsupported_platform_to_run_or_first_use(
+def test_install_hook_defers_unsupported_platform_to_first_use(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     warnings: list[str] = []
@@ -1016,7 +919,7 @@ def test_install_hook_defers_unsupported_platform_to_run_or_first_use(
     )
     assert hooks.install()
     assert len(warnings) == 1
-    assert "Run" in warnings[0]
+    assert "first semantic review" in warnings[0]
     assert "custom" in warnings[0]
 
 

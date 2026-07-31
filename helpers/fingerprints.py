@@ -13,6 +13,11 @@ from usr.plugins.sem_review_loop.helpers.project_scope import (
     literal_watched_pathspec,
 )
 from usr.plugins.sem_review_loop.helpers.sem_types import DiffRequest
+from usr.plugins.sem_review_loop.helpers.working_tree import (
+    WorkingTreeError,
+    canonical_working_payload,
+    collect_working_files,
+)
 
 
 _ERROR_DETAIL_LIMIT = 1000
@@ -184,11 +189,7 @@ def _resolve_commit(root: Path, ref: str) -> bytes:
 
 
 def working_fingerprint(root: Path, watched_relative: str) -> str:
-    """Hash sem's tracked-file working diff.
-
-    Untracked files are intentionally excluded until sem supports an
-    equivalent stable input mode.
-    """
+    """Hash the bounded working set, including untracked tool-created files."""
     return diff_fingerprint(
         root,
         watched_relative,
@@ -208,13 +209,31 @@ def diff_fingerprint(
     ]
     if request.mode == "working":
         resolved_refs = _resolve_commit(root, "HEAD")
-        command = [
-            "diff",
-            "--binary",
-            resolved_refs.decode("ascii"),
-            *pathspec,
-        ]
-    elif request.mode == "staged":
+        try:
+            working_files = collect_working_files(root, watched_relative)
+            working_payload = canonical_working_payload(working_files)
+        except WorkingTreeError as exc:
+            detail = str(exc)
+            if len(detail) > _ERROR_DETAIL_LIMIT:
+                detail = f"{detail[: _ERROR_DETAIL_LIMIT - 3]}..."
+            raise FingerprintError(
+                f"Git working-tree inspection failed: {detail}"
+            ) from exc
+        request_identity = json.dumps(
+            asdict(request),
+            sort_keys=True,
+        ).encode("utf-8")
+        digest = hashlib.sha256()
+        digest.update(
+            b"sem-review-v2\0"
+            + request_identity
+            + b"\0"
+            + resolved_refs
+            + b"\0"
+            + working_payload.encode("utf-8")
+        )
+        return digest.hexdigest()
+    if request.mode == "staged":
         resolved_refs = _resolve_commit(root, "HEAD")
         command = [
             "diff",

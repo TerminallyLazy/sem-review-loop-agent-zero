@@ -18,38 +18,47 @@ expose `sem_diff`, `sem_context`, and `sem_impact` through project MCP.
   edits, Git configuration changes, or system services
 
 Installing the pinned executable is the one supported network operation: the
-install hook or manual Run action downloads an exact official GitHub release
+plugin install and update hooks download an exact official GitHub release
 asset over HTTPS. Review, repair, and lesson workflows do not send source code
 or review data to sem cloud services.
 
 ## Install or repair sem
 
-Install the plugin below Agent Zero's `usr/plugins/sem_review_loop` directory,
-then use its **Run** action. The action downloads the pinned official sem
+Install the plugin below Agent Zero's `usr/plugins/sem_review_loop` directory.
+Its install/update hooks download the pinned official sem
 v0.21.0 asset for supported macOS, Linux, or Windows systems, verifies its
 SHA-256 digest, validates the exact CLI identity and version, and installs it
 below the plugin's ignored `.data/` directory. Both the archive and extracted
-executable have independently pinned SHA-256 digests. Running the action again
-verifies cached bytes before execution, reuses a valid installation, or
-repairs it atomically. It does not use a global package manager.
+executable have independently pinned SHA-256 digests. Running an install or
+update hook again verifies cached bytes before execution, reuses a valid
+installation, or repairs it atomically. It does not use a global package
+manager.
 
 A custom executable may be selected in project settings, but it must be an
 existing regular executable that reports exactly `sem 0.21.0`. The plugin
 never discovers or trusts an arbitrary `sem` from `PATH`.
 
 On an unsupported platform, plugin installation succeeds without a managed
-binary. Configure an absolute custom executable, then use **Run** or the first
-semantic review to validate its identity and version.
+binary. Configure an absolute custom executable; the first semantic review
+validates its identity and version.
 
 ## Use it
 
 1. Enable the plugin for a project from the Agent Zero plugin Switch.
 2. Open the **Semantic Review** right-canvas surface.
 3. Select **Enable MCP**, inspect the exact local stdio entry, and confirm.
-4. Edit code normally. The Changes tab refreshes from mutation events.
+4. Edit code normally. The default working-tree view includes tracked edits
+   and bounded untracked files created by tools in the watched project; the
+   Changes tab refreshes from mutation events with a small local heartbeat
+   fallback.
 5. Before task completion, Agent Zero reviews uncheckpointed structural
    changes and records `pass`, `repaired`, or `unresolved`.
 6. Approve only useful lesson cards in the Lessons tab.
+
+Lessons are project-scoped advisory metadata: after approval, matching future
+reviews include the problem and resolution as untrusted context for Agent
+Zero's bounded self-review. They do not edit files, execute commands, become
+global memory, or bypass the exact-fingerprint checkpoint requirement.
 
 Automatic Repair uses ordinary Agent Zero edits. It never stages, commits,
 reverts, or pushes, and it cannot exceed the configured project repair bound.

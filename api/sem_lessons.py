@@ -24,7 +24,11 @@ def _reviewed_fingerprint(scope: object) -> str:
         or state.checkpoint.outcome not in {"pass", "repaired"}
         or state.checkpoint.fingerprint != state.snapshot.fingerprint
     ):
-        raise APIConflictError("A current resolved semantic checkpoint is required")
+        raise APIConflictError(
+            "A current resolved semantic checkpoint is required. "
+            "Run the working-tree review and record pass or repaired for "
+            "this exact fingerprint before approving the lesson."
+        )
     return state.snapshot.fingerprint
 
 
