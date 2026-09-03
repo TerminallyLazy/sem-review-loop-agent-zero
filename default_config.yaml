@@ -5,3 +5,4 @@ automatic_repair: false
 max_repair_cycles: 2
 custom_sem_binary: ""
 context_token_budget: 8000
+working_tree_payload_mb: 256

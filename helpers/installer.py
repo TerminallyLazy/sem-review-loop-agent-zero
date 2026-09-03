@@ -615,7 +615,7 @@ def _download(url: str, timeout: int = DOWNLOAD_TIMEOUT_SECONDS) -> bytes:
     deadline = time.monotonic() + timeout
     request = urllib.request.Request(
         url,
-        headers={"User-Agent": "Agent-Zero-sem-review-loop/1.0.0"},
+        headers={"User-Agent": "Agent-Zero-sem-review-loop/1.1.0"},
     )
     opener = _build_download_opener(url, deadline)
     try:

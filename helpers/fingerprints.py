@@ -14,6 +14,7 @@ from usr.plugins.sem_review_loop.helpers.project_scope import (
 )
 from usr.plugins.sem_review_loop.helpers.sem_types import DiffRequest
 from usr.plugins.sem_review_loop.helpers.working_tree import (
+    MAX_WORKING_BYTES,
     WorkingTreeError,
     canonical_working_payload,
     collect_working_files,
@@ -188,12 +189,17 @@ def _resolve_commit(root: Path, ref: str) -> bytes:
     return object_id
 
 
-def working_fingerprint(root: Path, watched_relative: str) -> str:
+def working_fingerprint(
+    root: Path,
+    watched_relative: str,
+    maximum_bytes: int = MAX_WORKING_BYTES,
+) -> str:
     """Hash the bounded working set, including untracked tool-created files."""
     return diff_fingerprint(
         root,
         watched_relative,
         DiffRequest("working"),
+        maximum_bytes,
     )
 
 
@@ -201,6 +207,7 @@ def diff_fingerprint(
     root: Path,
     watched_relative: str,
     request: DiffRequest,
+    maximum_working_bytes: int = MAX_WORKING_BYTES,
 ) -> str:
     pathspec = [
         "--",
@@ -210,8 +217,15 @@ def diff_fingerprint(
     if request.mode == "working":
         resolved_refs = _resolve_commit(root, "HEAD")
         try:
-            working_files = collect_working_files(root, watched_relative)
-            working_payload = canonical_working_payload(working_files)
+            working_files = collect_working_files(
+                root,
+                watched_relative,
+                maximum_working_bytes,
+            )
+            working_payload = canonical_working_payload(
+                working_files,
+                maximum_working_bytes,
+            )
         except WorkingTreeError as exc:
             detail = str(exc)
             if len(detail) > _ERROR_DETAIL_LIMIT:

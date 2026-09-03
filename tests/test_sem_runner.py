@@ -24,6 +24,7 @@ from usr.plugins.sem_review_loop.helpers.sem_runner import (
     run_bounded,
 )
 from usr.plugins.sem_review_loop.helpers.sem_types import (
+    MAX_CONTENT_BYTES,
     DiffRequest,
     EntityRef,
     SemParseError,
@@ -328,6 +329,72 @@ def test_working_diff_uses_stdin_for_untracked_tool_files(
     assert "tool_created.py" in stdin
     assert "tracked.py" in stdin
     assert "generated" in stdin
+
+
+def test_working_diff_excludes_oversized_tracked_file_without_failing(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    subprocess.run(
+        ["git", "init", "-q"],
+        cwd=project,
+        check=True,
+        capture_output=True,
+        shell=False,
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "synthetic@example.invalid"],
+        cwd=project,
+        check=True,
+        capture_output=True,
+        shell=False,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Synthetic Test User"],
+        cwd=project,
+        check=True,
+        capture_output=True,
+        shell=False,
+    )
+    source = project / "generated.py"
+    source.write_text("value = 1\n", encoding="utf-8")
+    subprocess.run(
+        ["git", "add", "generated.py"],
+        cwd=project,
+        check=True,
+        capture_output=True,
+        shell=False,
+    )
+    subprocess.run(
+        ["git", "commit", "-qm", "base"],
+        cwd=project,
+        check=True,
+        capture_output=True,
+        shell=False,
+    )
+    source.write_bytes(b"x" * (MAX_CONTENT_BYTES + 1))
+    scope = make_scope("ctx", "project", project, ".")
+    calls: list[dict[str, object]] = []
+
+    def execute(**kwargs: object) -> CommandResult:
+        calls.append(kwargs)
+        return CommandResult(0, json.dumps(EMPTY_DIFF), "")
+
+    SemRunner(
+        tmp_path / "cache",
+        execute=execute,
+        binary_lease=fixed_binary_lease,
+    ).diff(scope, DiffRequest("working"), "fingerprint")
+
+    assert calls[0]["args"] == [
+        "/opt/sem",
+        "diff",
+        "--stdin",
+        "--format",
+        "json",
+    ]
+    assert calls[0]["stdin"] == "[]"
 
 
 @pytest.mark.parametrize(

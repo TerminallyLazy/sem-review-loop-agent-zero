@@ -289,12 +289,60 @@ def test_panel_uses_store_gate_and_mount_cleanup_contract() -> None:
     assert 'x-create="$store.semReviewLoop.onMount' in panel
     assert 'x-destroy="$store.semReviewLoop.cleanup()"' in panel
     assert "Working tree + tool files" in panel
-    assert "bounded untracked files" in panel
+    changes_start = panel.index(
+        '<section x-show="$store.semReviewLoop.activeTab === \'changes\'">'
+    )
+    review_start = panel.index(
+        '<section x-show="$store.semReviewLoop.activeTab === \'review\'">'
+    )
+    mcp_setup = panel.index("Connect semantic tools to Agent Zero")
+    assert changes_start < mcp_setup < review_start
+    assert panel.count("Connect semantic tools to Agent Zero") == 1
+    assert all(tool in panel for tool in ("sem_diff", "sem_context", "sem_impact"))
+    assert "Nothing is sent to the cloud" in panel
+    assert "Review MCP setup" in panel
+    assert "Enable semantic tools" in panel
+    assert "Connected and verified" in panel
+    assert 'x-model="$store.semReviewLoop.commitRef"' in panel
+    assert 'x-model="$store.semReviewLoop.fromRef"' in panel
+    assert 'x-model="$store.semReviewLoop.toRef"' in panel
+    assert "all tracked and untracked files" in panel
     assert "Local-only" in panel
     assert "hasCurrentResolvedCheckpoint" in panel
     assert "Approved lessons are project-scoped advisory cards" in panel
     assert "x-html" not in panel
     assert "innerHTML" not in panel
+
+
+def test_config_exposes_working_tree_payload_ceiling() -> None:
+    config = read("webui", "config.html")
+    assert 'x-model.number="config.working_tree_payload_mb"' in config
+    assert 'min="16"' in config
+    assert 'max="1024"' in config
+
+
+def test_commit_and_range_views_submit_usable_default_refs() -> None:
+    run_store_behavior(
+        """
+model.contextId = "ctx-a";
+model.payload = payload("project-a", 1, "fingerprint-a");
+
+model.diffMode = "commit";
+const commitRequest = model.refreshDiff();
+const commitCall = take("sem_diff");
+assert(commitCall.request.commit === "HEAD", "commit view sent an empty ref");
+commitCall.reject(new Error("stop after request capture"));
+await commitRequest;
+
+model.diffMode = "range";
+const rangeRequest = model.refreshDiff();
+const rangeCall = take("sem_diff");
+assert(rangeCall.request.from_ref === "HEAD~1", "range view sent an empty from ref");
+assert(rangeCall.request.to_ref === "HEAD", "range view sent an empty to ref");
+rangeCall.reject(new Error("stop after request capture"));
+await rangeRequest;
+"""
+    )
 
 
 def test_store_uses_shared_api_websocket_and_notifications() -> None:

@@ -13,8 +13,7 @@ from usr.plugins.sem_review_loop.helpers.sem_types import (
 )
 
 
-MAX_WORKING_FILES = 20
-MAX_WORKING_BYTES = 2 * 1024 * 1024
+MAX_WORKING_BYTES = 256 * 1024 * 1024
 _GIT_TIMEOUT_SECONDS = 15
 _GIT_STATUS_BYTES = 4 * 1024 * 1024
 
@@ -70,8 +69,6 @@ def _in_scope(path: str, watched_relative: str) -> bool:
 def _decode_source(data: bytes | None) -> str | None:
     if data is None:
         return None
-    if len(data) > MAX_CONTENT_BYTES:
-        raise WorkingTreeError("A working-tree file exceeds the 2 MiB limit.")
     try:
         text = data.decode("utf-8")
     except UnicodeDecodeError:
@@ -152,6 +149,7 @@ def _status_records(raw: bytes) -> list[tuple[str, str, str | None]]:
 def collect_working_files(
     root: Path,
     watched_relative: str,
+    maximum_bytes: int = MAX_WORKING_BYTES,
 ) -> list[dict[str, Any]]:
     """Return bounded Git working changes, including untracked files.
 
@@ -200,6 +198,15 @@ def collect_working_files(
         if change_status in {"added", "modified", "renamed"}:
             after_bytes = _read_working_file(root, path)
 
+        # A null stdin source lets SEM fall back to reading the path from disk.
+        # Exclude oversized files altogether so a generated text artifact does
+        # not recreate the response-size failure this collector prevents.
+        if any(
+            data is not None and len(data) > MAX_CONTENT_BYTES
+            for data in (before_bytes, after_bytes)
+        ):
+            continue
+
         before_content = _decode_source(before_bytes)
         after_content = _decode_source(after_bytes)
         record: dict[str, Any] = {
@@ -217,17 +224,19 @@ def collect_working_files(
             ensure_ascii=False,
         ).encode("utf-8")
         total_bytes += len(encoded)
-        if len(records) >= MAX_WORKING_FILES or total_bytes > MAX_WORKING_BYTES:
+        if total_bytes > maximum_bytes:
             raise WorkingTreeError(
-                f"Working-tree comparison accepts at most {MAX_WORKING_FILES} "
-                "files and 2 MiB."
+                "Working-tree comparison exceeds the configured payload limit."
             )
         records.append(record)
     records.sort(key=lambda item: (str(item["filePath"]), str(item["status"])))
     return records
 
 
-def canonical_working_payload(files: list[dict[str, Any]]) -> str:
+def canonical_working_payload(
+    files: list[dict[str, Any]],
+    maximum_bytes: int = MAX_WORKING_BYTES,
+) -> str:
     if not files:
         return "[]"
     payload = json.dumps(
@@ -236,6 +245,8 @@ def canonical_working_payload(files: list[dict[str, Any]]) -> str:
         separators=(",", ":"),
         ensure_ascii=False,
     )
-    if len(payload.encode("utf-8")) > MAX_WORKING_BYTES:
-        raise WorkingTreeError("Working-tree comparison exceeds the 2 MiB limit.")
+    if len(payload.encode("utf-8")) > maximum_bytes:
+        raise WorkingTreeError(
+            "Working-tree comparison exceeds the configured payload limit."
+        )
     return payload

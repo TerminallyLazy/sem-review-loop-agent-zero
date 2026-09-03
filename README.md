@@ -46,9 +46,13 @@ validates its identity and version.
 
 1. Enable the plugin for a project from the Agent Zero plugin Switch.
 2. Open the **Semantic Review** right-canvas surface.
-3. Select **Enable MCP**, inspect the exact local stdio entry, and confirm.
-4. Edit code normally. The default working-tree view includes tracked edits
-   and bounded untracked files created by tools in the watched project; the
+3. In **Changes**, select **Review MCP setup**, inspect and confirm the exact
+   local stdio entry, then select **Enable semantic tools**.
+4. Edit code normally. The default working-tree view includes all tracked and
+   untracked files created by tools in the watched project. Files above 2 MiB
+   are excluded from semantic source analysis so generated artifacts cannot
+   block the remaining review. The aggregate local payload has a configurable
+   safety ceiling (256 MiB by default, adjustable from 16 MiB to 1 GiB). The
    Changes tab refreshes from mutation events with a small local heartbeat
    fallback.
 5. Before task completion, Agent Zero reviews uncheckpointed structural

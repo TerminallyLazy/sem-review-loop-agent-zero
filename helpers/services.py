@@ -42,6 +42,7 @@ def _runner_for(
     del scope
     return SemRunner(
         CACHE_ROOT,
+        max_working_bytes=config.working_tree_payload_mb * 1024 * 1024,
         binary_lease=partial(
             installer.lease_binary,
             config.custom_sem_binary,

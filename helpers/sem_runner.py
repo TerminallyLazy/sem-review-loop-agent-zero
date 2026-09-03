@@ -27,6 +27,7 @@ from usr.plugins.sem_review_loop.helpers.sem_types import (
     validate_relative_posix_path,
 )
 from usr.plugins.sem_review_loop.helpers.working_tree import (
+    MAX_WORKING_BYTES,
     WorkingTreeError,
     canonical_working_payload,
     collect_working_files,
@@ -699,10 +700,12 @@ class SemRunner:
         execute: Callable[..., CommandResult] = run_bounded,
         *,
         binary_lease: Callable[[], ContextManager[Path]],
+        max_working_bytes: int = MAX_WORKING_BYTES,
     ) -> None:
         self.cache_root = Path(cache_root)
         self._execute = execute
         self._binary_lease = binary_lease
+        self._max_working_bytes = max_working_bytes
 
     def _binary_context(self) -> ContextManager[Path]:
         return self._binary_lease()
@@ -875,22 +878,24 @@ class SemRunner:
         fingerprint: str,
     ) -> DiffSnapshot:
         stdin: str | None = None
-        # ``sem diff`` intentionally ignores untracked files. When the
-        # project is a Git worktree and the current scope contains an added
-        # file, feed the complete working set through SEM's bounded stdin
-        # mode so the normal Working tree view includes tool-created files as
-        # well as tracked edits. Non-Git synthetic projects retain the native
-        # command path used by older integrations.
+        # ``sem diff`` intentionally ignores untracked files. For a Git
+        # worktree, feed the collected working set through stdin so tracked,
+        # untracked, and oversized-file handling all use one consistent path.
+        # Non-Git synthetic projects retain the native command path used by
+        # older integrations.
         if request.mode == "working" and (scope.project_root / ".git").exists():
             try:
                 working_files = collect_working_files(
                     scope.project_root,
                     scope.watched_relative,
+                    self._max_working_bytes,
                 )
             except WorkingTreeError as exc:
                 raise SemCommandError(str(exc)) from exc
-            if any(record["status"] == "added" for record in working_files):
-                stdin = canonical_working_payload(working_files)
+            stdin = canonical_working_payload(
+                working_files,
+                self._max_working_bytes,
+            )
 
         payload = self._json_command(
             scope,

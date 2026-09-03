@@ -16,6 +16,7 @@ class PluginConfig:
     max_repair_cycles: int
     custom_sem_binary: str
     context_token_budget: int
+    working_tree_payload_mb: int = 256
 
 
 def _bounded_int(value: object, default: int, low: int, high: int) -> int:
@@ -76,6 +77,12 @@ def parse_config(raw: Mapping[str, Any] | None) -> PluginConfig:
             8000,
             1000,
             32000,
+        ),
+        working_tree_payload_mb=_bounded_int(
+            values.get("working_tree_payload_mb"),
+            256,
+            16,
+            1024,
         ),
     )
 

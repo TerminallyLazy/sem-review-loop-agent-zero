@@ -20,6 +20,7 @@ from usr.plugins.sem_review_loop.helpers.fingerprints import (
     diff_fingerprint,
     working_fingerprint,
 )
+from usr.plugins.sem_review_loop.helpers.sem_types import MAX_CONTENT_BYTES
 from usr.plugins.sem_review_loop.helpers.working_tree import (
     collect_working_files,
 )
@@ -73,6 +74,7 @@ def test_parse_config_defaults_and_bounds() -> None:
     assert defaults.max_repair_cycles == 2
     assert defaults.custom_sem_binary == ""
     assert defaults.context_token_budget == 8000
+    assert defaults.working_tree_payload_mb == 256
 
     bounded = parse_config(
         {
@@ -83,6 +85,7 @@ def test_parse_config_defaults_and_bounds() -> None:
             "max_repair_cycles": 99,
             "custom_sem_binary": " /tmp/sem ",
             "context_token_budget": 100,
+            "working_tree_payload_mb": 1,
         }
     )
     assert bounded.watched_subdirectory == "src"
@@ -92,17 +95,20 @@ def test_parse_config_defaults_and_bounds() -> None:
     assert bounded.max_repair_cycles == 3
     assert bounded.custom_sem_binary == "/tmp/sem"
     assert bounded.context_token_budget == 1000
+    assert bounded.working_tree_payload_mb == 16
 
     upper_bounds = parse_config(
         {
             "debounce_ms": 50_000,
             "max_repair_cycles": -1,
             "context_token_budget": 99_000,
+            "working_tree_payload_mb": 10_000,
         }
     )
     assert upper_bounds.debounce_ms == 5000
     assert upper_bounds.max_repair_cycles == 1
     assert upper_bounds.context_token_budget == 32000
+    assert upper_bounds.working_tree_payload_mb == 1024
 
 
 @pytest.mark.parametrize(
@@ -151,11 +157,13 @@ def test_parse_config_non_finite_numbers_use_field_defaults() -> None:
             "debounce_ms": float("inf"),
             "max_repair_cycles": float("-inf"),
             "context_token_budget": float("nan"),
+            "working_tree_payload_mb": float("inf"),
         }
     )
     assert config.debounce_ms == 400
     assert config.max_repair_cycles == 2
     assert config.context_token_budget == 8000
+    assert config.working_tree_payload_mb == 256
 
 
 def test_config_for_agent_uses_agent_scoped_plugin_config(
@@ -249,6 +257,42 @@ def test_working_fingerprint_tracks_untracked_tool_files_and_content(
     assert records[0]["status"] == "added"
     assert records[0]["beforeContent"] is None
     assert records[0]["afterContent"] == "value = 2\n"
+
+
+def test_working_files_are_not_limited_to_twenty_changes(tmp_path: Path) -> None:
+    initialized_repo(tmp_path)
+    for index in range(25):
+        (tmp_path / f"tool_created_{index}.py").write_text(
+            f"value = {index}\n",
+            encoding="utf-8",
+        )
+
+    records = collect_working_files(tmp_path, ".")
+
+    assert len(records) == 25
+    assert records[0]["filePath"] == "tool_created_0.py"
+    assert records[-1]["filePath"] == "tool_created_9.py"
+
+
+def test_oversized_working_file_does_not_block_other_changes(
+    tmp_path: Path,
+) -> None:
+    initialized_repo(tmp_path)
+    ordinary = tmp_path / "ordinary.py"
+    ordinary.write_text("value = 2\n", encoding="utf-8")
+    oversized = tmp_path / "generated.txt"
+    oversized.write_bytes(b"x" * (MAX_CONTENT_BYTES + 1))
+
+    records = collect_working_files(tmp_path, ".")
+
+    assert records == [
+        {
+            "filePath": "ordinary.py",
+            "status": "added",
+            "beforeContent": None,
+            "afterContent": "value = 2\n",
+        }
+    ]
 
 
 def test_colon_prefixed_watched_directory_is_a_literal_scope(

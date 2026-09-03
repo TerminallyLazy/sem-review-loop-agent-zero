@@ -717,10 +717,13 @@ class RefreshCoordinator:
         lane: RefreshLane,
         skip_if_current: bool,
     ) -> _ExecutionAttempt:
+        config = self._config(scope)
+        maximum_working_bytes = config.working_tree_payload_mb * 1024 * 1024
         before = self.fingerprint(
             scope.project_root,
             scope.watched_relative,
             request,
+            maximum_working_bytes,
         )
         if not self.registry.generation_is_current(
             scope,
@@ -741,7 +744,7 @@ class RefreshCoordinator:
                     stable=True,
                     skipped=True,
                 )
-        runner = self.runner_for(scope, self._config(scope))
+        runner = self.runner_for(scope, config)
         snapshot = runner.diff(
             scope,
             request,
@@ -751,6 +754,7 @@ class RefreshCoordinator:
             scope.project_root,
             scope.watched_relative,
             request,
+            maximum_working_bytes,
         )
         return _ExecutionAttempt(
             snapshot=snapshot,
@@ -1044,6 +1048,9 @@ class RefreshCoordinator:
                         scope.project_root,
                         scope.watched_relative,
                         request,
+                        self._config(scope).working_tree_payload_mb
+                        * 1024
+                        * 1024,
                     ),
                     timeout=self._remaining(deadline),
                 )

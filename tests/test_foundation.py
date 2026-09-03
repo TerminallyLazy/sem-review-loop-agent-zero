@@ -18,7 +18,7 @@ def test_manifest_contract_is_exact() -> None:
             "Entity-level review, bounded repair, and approved project "
             "lessons powered by sem."
         ),
-        "version": "1.0.0",
+        "version": "1.1.0",
         "settings_sections": ["agent"],
         "per_project_config": True,
         "per_agent_config": False,
@@ -38,6 +38,7 @@ def test_default_config_contract_is_exact() -> None:
         "max_repair_cycles": 2,
         "custom_sem_binary": "",
         "context_token_budget": 8000,
+        "working_tree_payload_mb": 256,
     }
 
 
