@@ -2776,6 +2776,41 @@ class MCPManager:
         await self._refresh_only(scope.project_name)
         del restored
 
+    async def ensure_enabled(
+        self,
+        scope: ProjectScope,
+        config: PluginConfig,
+    ) -> dict[str, object]:
+        """Reconcile the plugin-owned server as part of plugin activation.
+
+        Installation authorizes this entry. Keep the existing transactional
+        writer, ownership checks and verification for automatic reconciliation.
+        User-owned or edited entries still require manual conflict resolution.
+        """
+        status = await self.readiness(scope)
+        if status["conflict"] or (status["drifted"] and status["configured"]):
+            return status
+        receipt = self._get_receipt(scope.project_name)
+        desired_hash = canonical_hash(self._entry(scope, config))
+        if status["enabled"] and receipt and receipt.entry_hash == desired_hash:
+            self._set_registry(scope, True)
+            return status
+        preview = self.preview(scope, config)
+        try:
+            result = await self.enable(
+                scope, config, confirmed=True,
+                preview_token=preview["preview_token"],
+            )
+            return {**result, "error": ""}
+        except MCPStalePreviewError:
+            # Another context may have finished the same activation while this
+            # context waited for the per-project transaction gate.
+            current = await self.readiness(scope)
+            receipt = self._get_receipt(scope.project_name)
+            if current["enabled"] and receipt and receipt.entry_hash == desired_hash:
+                return current
+            raise
+
     async def enable(
         self,
         scope: ProjectScope,

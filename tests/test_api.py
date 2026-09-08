@@ -96,6 +96,7 @@ async def test_status_does_not_install_missing_managed_binary(monkeypatch: pytes
     monkeypatch.setattr(sem_status, "get_registry", lambda: SimpleNamespace(public_status=lambda _scope: {"revision": 0}))
     monkeypatch.setattr(sem_status, "get_mcp_manager", lambda: SimpleNamespace(status=lambda _scope: {"enabled": False}))
     monkeypatch.setattr(sem_status.installer, "installed_binary_path", lambda: Path("/missing/sem"))
+    monkeypatch.setattr(sem_status, "get_coordinator", lambda: SimpleNamespace(poll=lambda scope: None))
     result = await object.__new__(sem_status.SemStatus).process({}, SimpleNamespace())
     payload = response_json(result)
     assert payload["sem"]["available"] is False

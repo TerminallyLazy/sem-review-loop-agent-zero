@@ -18,7 +18,7 @@ def test_manifest_contract_is_exact() -> None:
             "Entity-level review, bounded repair, and approved project "
             "lessons powered by sem."
         ),
-        "version": "1.1.0",
+        "version": "1.2.0",
         "settings_sections": ["agent"],
         "per_project_config": True,
         "per_agent_config": False,
@@ -154,7 +154,7 @@ def test_readme_states_safety_installation_and_limitations() -> None:
         "# Semantic Review Loop",
         "Local-only",
         "telemetry",
-        "**Enable MCP**",
+        "Automatic, project-scoped MCP activation",
         "Automatic Repair is off by default",
         "Lessons remain inactive until approved",
         "No staging, commits, reverts, pushes",

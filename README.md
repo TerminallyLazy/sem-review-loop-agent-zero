@@ -2,14 +2,14 @@
 
 Semantic Review Loop adds entity-level code review to Agent Zero with
 [Ataraxy Labs sem](https://github.com/Ataraxy-Labs/sem). It presents
-structural and cosmetic changes in the **Semantic Review** surface and can
-expose `sem_diff`, `sem_context`, and `sem_impact` through project MCP.
+structural and cosmetic changes in the **Semantic Review** surface and automatically
+connects `sem_diff`, `sem_context`, and `sem_impact` through project MCP.
 
 ## Safety defaults
 
 - Local-only semantic analysis with telemetry, update checks, cloud access,
   and unmanaged sidecars disabled
-- Explicit **Enable MCP** approval for each Agent Zero project
+- Automatic, project-scoped MCP activation with verified tools and ownership-safe configuration
 - Bounded self-review; Automatic Repair is off by default and stops after the
   configured maximum repair cycles
 - Lessons remain inactive until approved from a review card and stay scoped
@@ -46,8 +46,8 @@ validates its identity and version.
 
 1. Enable the plugin for a project from the Agent Zero plugin Switch.
 2. Open the **Semantic Review** right-canvas surface.
-3. In **Changes**, select **Review MCP setup**, inspect and confirm the exact
-   local stdio entry, then select **Enable semantic tools**.
+3. Semantic tools connect automatically. Expand the connection details only
+   if a tool needs attention.
 4. Edit code normally. The default working-tree view includes all tracked and
    untracked files created by tools in the watched project. Files above 2 MiB
    are excluded from semantic source analysis so generated artifacts cannot
@@ -55,8 +55,9 @@ validates its identity and version.
    safety ceiling (256 MiB by default, adjustable from 16 MiB to 1 GiB). The
    Changes tab refreshes from mutation events with a small local heartbeat
    fallback.
-5. Before task completion, Agent Zero reviews uncheckpointed structural
-   changes and records `pass`, `repaired`, or `unresolved`.
+5. Agent Zero requests the current fingerprint with `sem_review_checkpoint`
+   action `status`, reviews structural changes, then records `pass`, `repaired`,
+   or `unresolved` before completing the task.
 6. Approve only useful lesson cards in the Lessons tab.
 
 Lessons are project-scoped advisory metadata: after approval, matching future
@@ -69,7 +70,7 @@ reverts, or pushes, and it cannot exceed the configured project repair bound.
 
 ## Remove it
 
-Disable MCP first when practical, then uninstall the plugin. Uninstall removes
+Uninstall the plugin to remove its managed MCP connections. Uninstall removes
 only exact plugin-managed MCP entries and plugin-owned binaries, caches,
 pending proposals, receipts, and approved lessons. A drifted MCP entry is preserved
 and reported for manual review. This reversible cleanup does not
@@ -90,7 +91,7 @@ does not support Windows arm64 or other architectures.
   degrade gracefully in a non-Git project, but commit and branch comparisons
   are unavailable there.
 - Version 1 supports only sem v0.21.0.
-- Project MCP is never enabled automatically.
+- MCP stays enabled while the plugin is installed; there is no separate off switch.
 - Automatic Repair is opt-in and bounded; unresolved findings remain visible
   for a person to decide.
 - Approved lessons are project-local and are not a global memory collection.
@@ -98,3 +99,27 @@ does not support Windows arm64 or other architectures.
 ## License
 
 MIT. See `THIRD_PARTY_NOTICES.md` for sem licensing.
+
+## Review workflow
+
+The panel uses Agent Zero's theme colors, typography, controls and compact tabs.
+Filter changes by file or function, focus on structural changes, compare a
+commit or range, and select an entity to inspect its code, related context and
+impact. The Review tab shows checkpoint findings and identifies older reviews.
+Errors remain visible rather than appearing as an empty change list.
+
+Install and update hooks connect existing projects. Opening the panel or
+starting an agent turn connects new projects and checks existing connections.
+Missing plugin-owned entries are restored. User-edited entries and name
+conflicts are preserved and reported; connection details offer a retry after
+resolving the conflict. Tool verification must succeed before showing connected.
+
+With automatic refresh enabled, the open panel checks for external file edits
+as well as editor/tool events. Unchanged fingerprints reuse the previous result;
+a heartbeat does not cancel an in-flight mutation refresh.
+
+Lessons are optional and specific: the checkpoint tool accepts a `lesson` with
+`problem` and `resolution` after a successful review. Routine passes do not
+create generic lessons. Approval binds to the current working snapshot even
+when a historical comparison is on screen. Approved lessons remain advisory
+and project-local.

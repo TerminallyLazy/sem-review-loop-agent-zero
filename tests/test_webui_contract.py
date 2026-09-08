@@ -288,28 +288,20 @@ def test_panel_uses_store_gate_and_mount_cleanup_contract() -> None:
     assert '<template x-if="$store.semReviewLoop">' in panel
     assert 'x-create="$store.semReviewLoop.onMount' in panel
     assert 'x-destroy="$store.semReviewLoop.cleanup()"' in panel
-    assert "Working tree + tool files" in panel
-    changes_start = panel.index(
-        '<section x-show="$store.semReviewLoop.activeTab === \'changes\'">'
-    )
-    review_start = panel.index(
-        '<section x-show="$store.semReviewLoop.activeTab === \'review\'">'
-    )
-    mcp_setup = panel.index("Connect semantic tools to Agent Zero")
-    assert changes_start < mcp_setup < review_start
-    assert panel.count("Connect semantic tools to Agent Zero") == 1
-    assert all(tool in panel for tool in ("sem_diff", "sem_context", "sem_impact"))
-    assert "Nothing is sent to the cloud" in panel
-    assert "Review MCP setup" in panel
-    assert "Enable semantic tools" in panel
-    assert "Connected and verified" in panel
+    assert "Uncommitted changes" in panel
+    assert "Tools connect automatically" in panel
+    assert "Retry connection" in panel
+    assert "Review MCP setup" not in panel
+    assert "Disable semantic tools" not in panel
+    assert 'role="alert"' in panel
+    assert "checkpoint?.findings" in panel
     assert 'x-model="$store.semReviewLoop.commitRef"' in panel
     assert 'x-model="$store.semReviewLoop.fromRef"' in panel
     assert 'x-model="$store.semReviewLoop.toRef"' in panel
-    assert "all tracked and untracked files" in panel
-    assert "Local-only" in panel
+    assert "tracked and untracked files" in panel
+    assert "Source analysis runs locally" in panel
     assert "hasCurrentResolvedCheckpoint" in panel
-    assert "Approved lessons are project-scoped advisory cards" in panel
+    assert "Keep lesson" in panel
     assert "x-html" not in panel
     assert "innerHTML" not in panel
 
@@ -529,7 +521,7 @@ def test_grouping_is_sorted_without_mutating_api_changes() -> None:
     grouped_start = store.index("  groupedChanges(")
     grouped_end = store.index("\n  selectedChange(", grouped_start)
     grouped = store[grouped_start:grouped_end]
-    assert "[...this.changes()]" in grouped
+    assert "this.changes().filter(" in grouped
     assert ".sort(" in grouped
     assert ".push(" in grouped
     assert ".changes.sort(" not in grouped
@@ -1332,3 +1324,66 @@ assert(!model.error.includes("/Users/private/repo"), "diagnostic leaked local pa
 assert(notifications.errors.at(-1)[0] === model.error, "notification used an unsanitized diagnostic");
 """
     )
+
+
+def test_filters_preserve_original_changes_and_match_file_or_entity():
+    run_store_behavior("""
+model.contextId = 'ctx-a';
+model.payload = payload('project-a', 1, 'fingerprint-a');
+const original = JSON.stringify(model.changes());
+model.searchQuery = 'does-not-exist';
+assert(model.groupedChanges().length === 0, 'search did not filter');
+assert(model.emptyMessage().includes('filters'), 'filtered empty state missing');
+model.searchQuery = '';
+assert(model.groupedChanges().length > 0, 'clearing filter did not restore changes');
+assert(JSON.stringify(model.changes()) === original, 'filter mutated source');
+""")
+
+
+def test_lesson_approval_uses_working_snapshot_not_historical_view():
+    run_store_behavior("""
+model.contextId = 'ctx-a';
+model.payload = payload('project-a', 2, 'working-fingerprint');
+model.payload.review.checkpoint = {fingerprint:'working-fingerprint',outcome:'pass',structural_entities:[],findings:[]};
+model.payload.review.snapshot = {...model.payload.review.working, fingerprint:'historical-fingerprint',request:{mode:'commit',commit:'HEAD'}};
+assert(model.hasCurrentResolvedCheckpoint(), 'historical view blocked current working lesson');
+model.payload.review.working.stale = true;
+assert(!model.hasCurrentResolvedCheckpoint(), 'stale working state allowed lesson approval');
+""")
+
+
+def test_refresh_timers_work_with_alpine_style_proxy_wrapping():
+    run_store_behavior("""
+const timers = [];
+const setTimeoutOriginal = globalThis.setTimeout;
+const clearTimeoutOriginal = globalThis.clearTimeout;
+globalThis.setTimeout = callback => { timers.push(callback); return timers.length; };
+globalThis.clearTimeout = () => {};
+// Alpine returns reactive proxies for stored objects, not the original value.
+const reactive = new Proxy(model, {
+  get(target, key, receiver) {
+    const value = Reflect.get(target, key, receiver);
+    if (['_realtimeTimerBinding', '_revisionTimerBinding'].includes(key) && value) return new Proxy(value, {});
+    return value;
+  },
+});
+reactive.contextId = 'ctx-a';
+reactive.payload = payload('project-a', 1, 'fingerprint-a');
+reactive._mounted = true;
+reactive._root = {};
+let refreshes = 0;
+reactive.refreshStatus = async () => { refreshes += 1; };
+await reactive._subscribeRevision(reactive._lifecycleSeq, reactive._root);
+reactive._scheduleRealtimePoll();
+await timers.shift()();
+assert(refreshes === 1, 'Alpine proxy prevented heartbeat refresh');
+reactive._revisionHandler({data:{context_id:'ctx-a',project_id:'project-a',revision:2}});
+await timers.at(-1)();
+assert(refreshes === 2, 'Alpine proxy prevented revision refresh');
+reactive.cleanup();
+const before = refreshes;
+for (const timer of timers) await timer();
+assert(refreshes === before, 'cleaned-up timer refreshed a closed panel');
+globalThis.setTimeout = setTimeoutOriginal;
+globalThis.clearTimeout = clearTimeoutOriginal;
+""")

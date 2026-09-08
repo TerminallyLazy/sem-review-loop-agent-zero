@@ -291,6 +291,8 @@ const model = {
   payload: null,
   activeTab: "changes",
   diffMode: "working",
+  searchQuery: "",
+  structuralOnly: false,
   commitRef: "HEAD",
   fromRef: "HEAD~1",
   toRef: "HEAD",
@@ -311,6 +313,8 @@ const model = {
   _revisionTimerBinding: null,
   _realtimeTimer: null,
   _realtimeTimerBinding: null,
+  _realtimeTimerSeq: 0,
+  _revisionTimerSeq: 0,
   _lifecycleSeq: 0,
   _subscriptionSeq: 0,
   _requestSeq: 0,
@@ -370,11 +374,13 @@ const model = {
 
   hasCurrentResolvedCheckpoint() {
     const checkpoint = this.payload?.review?.checkpoint;
-    const snapshot = this.snapshot();
+    const snapshot = this.payload?.review?.working;
     return Boolean(
       checkpoint
       && (checkpoint.outcome === "pass" || checkpoint.outcome === "repaired")
       && snapshot
+      && !snapshot.stale
+      && !this.payload?.review?.pending_generation
       && checkpoint.fingerprint === snapshot.fingerprint,
     );
   },
@@ -547,8 +553,9 @@ const model = {
 
   _scheduleRealtimePoll() {
     this._clearRealtimeTimer();
-    if (!this._mounted || !this.contextId || !this._revisionOff) return;
+    if (!this._mounted || !this.contextId) return;
     const binding = {
+      timerSeq: ++this._realtimeTimerSeq,
       lifecycleSeq: this._lifecycleSeq,
       subscriptionSeq: this._subscriptionSeq,
       rootToken: this._root,
@@ -556,7 +563,7 @@ const model = {
     };
     this._realtimeTimerBinding = binding;
     this._realtimeTimer = globalThis.setTimeout(async () => {
-      if (this._realtimeTimerBinding !== binding) return;
+      if (this._realtimeTimerBinding?.timerSeq !== binding.timerSeq) return;
       this._realtimeTimer = null;
       this._realtimeTimerBinding = null;
       if (!this._realtimeBindingIsCurrent(binding)) return;
@@ -726,6 +733,7 @@ const model = {
       if (revision <= currentRevision) return;
       this._clearRevisionTimer();
       const timerBinding = {
+        timerSeq: ++this._revisionTimerSeq,
         lifecycleSeq: this._lifecycleSeq,
         subscriptionSeq,
         rootToken: this._root,
@@ -736,7 +744,7 @@ const model = {
       };
       this._revisionTimerBinding = timerBinding;
       this._revisionTimer = globalThis.setTimeout(() => {
-        if (this._revisionTimerBinding !== timerBinding) return;
+        if (this._revisionTimerBinding?.timerSeq !== timerBinding.timerSeq) return;
         this._revisionTimer = null;
         this._revisionTimerBinding = null;
         if (!this._revisionTimerBindingIsCurrent(timerBinding)) return;
@@ -1187,6 +1195,49 @@ const model = {
     }
   },
 
+  async retryMcp() {
+    const binding = this._operationBinding();
+    const busyToken = this._beginBusy();
+    try {
+      const response = requireApiSuccess(await callJsonApi(apiPath("sem_mcp"), {
+        context_id: this._requireContext(), action: "ensure",
+      }), "Unable to connect semantic tools.");
+      if (!this._operationBindingIsCurrent(binding)) return null;
+      if (!response.enabled) throw new Error(response.error || "Semantic tools are unavailable.");
+      await this.refreshStatus({ keepSelection: true });
+      return response;
+    } catch (error) {
+      if (this._operationBindingIsCurrent(binding)) this._notifyError(error);
+      return null;
+    } finally {
+      this._endBusy(busyToken);
+    }
+  },
+
+  async showTab(tab) {
+    this.activeTab = tab;
+    if (tab === "lessons") await this.loadLessons();
+  },
+
+  visibleError() {
+    return this.error || this.payload?.review?.error || this.snapshot()?.error || "";
+  },
+
+  checkpointLabel() {
+    const checkpoint = this.payload?.review?.checkpoint;
+    if (!checkpoint) return "Awaiting agent review";
+    if (checkpoint.fingerprint !== this.payload?.review?.working?.fingerprint) return "Changes since last review";
+    return ({ pass: "Review passed", repaired: "Repaired and reviewed", unresolved: "Findings need attention", cancelled: "Review cancelled" })[checkpoint.outcome] || "Awaiting agent review";
+  },
+
+  emptyMessage() {
+    if (!this.contextId) return "Open a chat in an Agent Zero project to review its changes.";
+    if (this.visibleError()) return "Changes could not be loaded. Resolve the error above, then refresh.";
+    if (!this.snapshot()) return "Checking this project for changes…";
+    if (this.searchQuery || this.structuralOnly) return "No changes match these filters.";
+    return "No semantic changes in this comparison. Edit a supported source file to see its functions and classes here.";
+  },
+
   async previewMcp() {
     this._requireContext();
     const binding = this._operationBinding();
@@ -1561,7 +1612,11 @@ const model = {
   },
 
   groupedChanges() {
-    const sorted = [...this.changes()].sort((left, right) => {
+    const query = this.searchQuery.trim().toLowerCase();
+    const sorted = this.changes().filter((change) => (
+      (!this.structuralOnly || change.structural)
+      && (!query || `${change.file_path} ${change.entity_name} ${change.change_type}`.toLowerCase().includes(query))
+    )).sort((left, right) => {
       const pathOrder = String(left?.file_path || "").localeCompare(
         String(right?.file_path || ""),
       );
@@ -1598,6 +1653,24 @@ const model = {
 
   approvedLessons() {
     return lessonLists(this.payload?.lessons).approved;
+  },
+
+  contextEntries() {
+    return Array.isArray(this.contextResult?.entries) ? this.contextResult.entries : [];
+  },
+
+  impactGroups() {
+    const result = this.impactResult || {};
+    return [
+      ["Uses", result.dependencies], ["Used by", result.dependents],
+      ["Related tests", result.tests], ["Indirect impact", result.impact?.entities],
+    ].map(([title, items]) => ({title, items: Array.isArray(items) ? items : []}));
+  },
+
+  relatedEntityLabel(item) {
+    if (typeof item === "string") return item;
+    const entity = item?.entity || item || {};
+    return [entity.name || entity.entityName || entity.entityId || "Related entity", entity.file || entity.filePath].filter(Boolean).join(" · ");
   },
 
   formatResult(value) {

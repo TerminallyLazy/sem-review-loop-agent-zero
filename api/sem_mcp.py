@@ -44,18 +44,17 @@ class SemMcp(ApiHandler):
                     "ok": True,
                     **manager.preview(scope, config),
                 })
-            if action == "enable":
+            if action in {"enable", "ensure"}:
                 return json_response({
                     "ok": True,
-                    **await manager.enable(
-                        scope,
-                        config,
-                        confirmed=input.get("confirmed"),
-                        preview_token=input.get("preview_token"),
-                    ),
+                    **await manager.ensure_enabled(scope, config),
                 })
             if action == "disable":
-                return json_response({"ok": True, **await manager.disable(scope)})
+                return bad_request(
+                    "Semantic tools stay enabled while the plugin is installed. "
+                    "Uninstall the plugin to remove its managed MCP entries.",
+                    status=409,
+                )
             return bad_request(f"Unknown MCP action: {action}")
         except APIInputError as exc:
             return bad_request(exc)

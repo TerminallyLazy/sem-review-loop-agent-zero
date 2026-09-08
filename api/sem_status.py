@@ -11,6 +11,7 @@ from usr.plugins.sem_review_loop.helpers.api_support import (
     json_response,
 )
 from usr.plugins.sem_review_loop.helpers.services import (
+    get_coordinator,
     get_mcp_manager,
     get_registry,
 )
@@ -52,7 +53,7 @@ class SemStatus(ApiHandler):
             registry = get_registry()
             manager = get_mcp_manager()
             try:
-                mcp = manager.status(scope)
+                mcp = await manager.ensure_enabled(scope, config)
             except Exception:
                 mcp = {
                     "configured": False,
@@ -63,10 +64,13 @@ class SemStatus(ApiHandler):
                     "tools": [],
                     "error": "Project MCP status is unavailable.",
                 }
+            review = registry.public_status(scope)
+            if config.automatic_refresh:
+                get_coordinator().poll(scope)
             return json_response(
                 {
                     "ok": True,
-                    "review": registry.public_status(scope),
+                    "review": review,
                     "sem": _binary_status(config.custom_sem_binary),
                     "mcp": mcp,
                     "policy": {
