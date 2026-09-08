@@ -5,15 +5,17 @@
     <template x-if="config">
       <div>
         <div class="section-title">Semantic Review Loop</div>
-        <div class="section-description">Local-only semantic diff tracking. MCP remains an explicit project action in the Changes tab.</div>
+        <div class="section-description">Review code changes with Agent Zero. Local semantic tools connect automatically and stay enabled.</div>
         <div class="field"><div class="field-label"><div class="field-title">Watched subdirectory</div><div class="field-description">A relative directory inside the active project.</div></div><div class="field-control"><input type="text" x-model="config.watched_subdirectory" placeholder="."></div></div>
         <div class="field"><div class="field-label"><div class="field-title">Automatic refresh</div><div class="field-description">Refresh the working semantic view after in-scope mutations.</div></div><div class="field-control"><label class="toggle"><input type="checkbox" x-model="config.automatic_refresh"><span class="toggler"></span></label></div></div>
-        <div class="field"><div class="field-label"><div class="field-title">Debounce (ms)</div><div class="field-description">Coalesce bursts of editor and terminal mutations.</div></div><div class="field-control"><input type="number" min="100" max="5000" step="50" x-model.number="config.debounce_ms"></div></div>
         <div class="field"><div class="field-label"><div class="field-title">Automatic Repair</div><div class="field-description">Opt in per project to bounded repair instructions. Disabled by default.</div></div><div class="field-control"><label class="toggle"><input type="checkbox" x-model="config.automatic_repair"><span class="toggler"></span></label></div></div>
-        <div class="field"><div class="field-label"><div class="field-title">Maximum repair cycles</div><div class="field-description">Hard bounded to three cycles.</div></div><div class="field-control"><input type="number" min="1" max="3" step="1" x-model.number="config.max_repair_cycles"></div></div>
+        <div class="field" x-show="config.automatic_repair"><div class="field-label"><div class="field-title">Maximum repair cycles</div><div class="field-description">Hard bounded to three cycles.</div></div><div class="field-control"><input type="number" min="1" max="3" step="1" x-model.number="config.max_repair_cycles"></div></div>
+        <details style="margin-top:1rem"><summary>Advanced settings</summary>
+        <div class="field"><div class="field-label"><div class="field-title">Debounce (ms)</div><div class="field-description">Coalesce bursts of editor and terminal mutations.</div></div><div class="field-control"><input type="number" min="100" max="5000" step="50" x-model.number="config.debounce_ms"></div></div>
         <div class="field"><div class="field-label"><div class="field-title">Custom sem binary</div><div class="field-description">Optional absolute path to a verified sem 0.21.0 binary.</div></div><div class="field-control"><input type="text" x-model="config.custom_sem_binary" autocomplete="off"></div></div>
         <div class="field"><div class="field-label"><div class="field-title">Context token budget</div><div class="field-description">Bounded budget for on-demand entity context.</div></div><div class="field-control"><input type="number" min="1000" max="32000" step="500" x-model.number="config.context_token_budget"></div></div>
         <div class="field"><div class="field-label"><div class="field-title">Working-tree payload (MiB)</div><div class="field-description">Local changed-source payload ceiling. File count is not limited; files above 2 MiB are excluded from source analysis.</div></div><div class="field-control"><input type="number" min="16" max="1024" step="16" x-model.number="config.working_tree_payload_mb"></div></div>
+        </details>
         <div class="section-description">Telemetry, cloud access, update checks, and unmanaged sidecars are disabled by policy.</div>
       </div>
     </template>

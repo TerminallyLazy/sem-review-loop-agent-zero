@@ -2067,3 +2067,73 @@ def test_api_defaults_and_unknown_context_are_fail_closed() -> None:
     with pytest.raises(APIInputError, match="Unknown Agent Zero context") as exc:
         agent_scope_config(MissingContext(), {"context_id": "missing"})
     assert "sensitive" not in str(exc.value)
+
+
+@pytest.mark.asyncio
+async def test_automatic_mcp_activation_is_idempotent_and_preserves_other_servers(tmp_path):
+    project_scope = scope(tmp_path)
+    store = MemoryStore({"mcpServers": {"other": OTHER}})
+    manager, store, receipts = manager_for(project_scope, store=store)
+    first = await manager.ensure_enabled(project_scope, CONFIG)
+    assert first["enabled"] is True
+    assert first["error"] == ""
+    original = store.raw
+    second = await manager.ensure_enabled(project_scope, CONFIG)
+    assert second["enabled"] is True
+    assert store.raw == original
+    assert json.loads(store.raw)["mcpServers"]["other"] == OTHER
+
+
+@pytest.mark.asyncio
+async def test_automatic_mcp_preserves_user_owned_conflict(tmp_path):
+    project_scope = scope(tmp_path)
+    store = MemoryStore({"mcpServers": {SERVER_NAME: OTHER}})
+    manager, store, receipts = manager_for(project_scope, store=store)
+    original = store.raw
+    result = await manager.ensure_enabled(project_scope, CONFIG)
+    assert result["conflict"] is True
+    assert result["enabled"] is False
+    assert store.raw == original
+
+
+@pytest.mark.asyncio
+async def test_automatic_mcp_restores_deleted_owned_entry(tmp_path):
+    project_scope = scope(tmp_path)
+    manager, store, receipts = manager_for(project_scope)
+    await manager.ensure_enabled(project_scope, CONFIG)
+    store.raw = b'{"mcpServers": {}}'
+    result = await manager.ensure_enabled(project_scope, CONFIG)
+    assert result["enabled"] is True
+    assert SERVER_NAME in json.loads(store.raw)["mcpServers"]
+
+
+@pytest.mark.asyncio
+async def test_automatic_mcp_preserves_modified_owned_entry(tmp_path):
+    project_scope = scope(tmp_path)
+    manager, store, receipts = manager_for(project_scope)
+    await manager.ensure_enabled(project_scope, CONFIG)
+    document = json.loads(store.raw)
+    document["mcpServers"][SERVER_NAME]["command"] = "user-edit"
+    store.raw = json.dumps(document).encode()
+    original = store.raw
+    result = await manager.ensure_enabled(project_scope, CONFIG)
+    assert result["drifted"] is True
+    assert not result["enabled"]
+    assert store.raw == original
+
+
+@pytest.mark.asyncio
+async def test_api_connects_without_confirmation_and_rejects_separate_disable(monkeypatch, tmp_path):
+    from usr.plugins.sem_review_loop.api import sem_mcp
+    from usr.plugins.sem_review_loop.helpers import services
+    project_scope = scope(tmp_path)
+    manager, store, receipts = manager_for(project_scope)
+    monkeypatch.setattr(sem_mcp, 'agent_scope_config', lambda *args: (object(), project_scope, CONFIG))
+    monkeypatch.setattr(services, 'get_mcp_manager', lambda: manager)
+    handler = object.__new__(SemMcp)
+    result = await handler.process({'action':'ensure'}, None)
+    assert json.loads(result.get_data())['enabled'] is True
+    before = store.raw
+    disabled = await handler.process({'action':'disable'}, None)
+    assert disabled.status_code == 409
+    assert store.raw == before

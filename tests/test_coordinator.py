@@ -1196,3 +1196,15 @@ async def test_stubborn_emitter_is_bounded_and_tracked_until_completion() -> Non
 
     release_emitter.set()
     await wait_until(lambda: not coordinator._emit_tasks)
+
+
+def test_heartbeat_does_not_cancel_an_inflight_mutation_refresh():
+    FakeTask.instances.clear()
+    registry, coordinator, _runner = coordinator_for_test()
+    first = coordinator.schedule(SCOPE, "mutation", [])
+    task = FakeTask.instances[-1]
+    coordinator.poll(SCOPE)
+    assert len(FakeTask.instances) == 1
+    assert not task.killed
+    assert registry.pending_generation(SCOPE) == first
+    coordinator.close()

@@ -209,7 +209,7 @@ async def test_mcp_off_bypasses_without_forcing_sem(
     patch_scope_and_config(monkeypatch)
 
     class Manager:
-        async def readiness(self, _scope: ProjectScope) -> dict[str, object]:
+        async def ensure_enabled(self, _scope: ProjectScope, _config) -> dict[str, object]:
             return {"armed": False, "enabled": False, "tools": [], "error": ""}
 
     monkeypatch.setattr(module, "get_mcp_manager", lambda: Manager())
@@ -233,7 +233,7 @@ async def test_mcp_off_registry_verification_error_is_armed_failure(
     patch_scope_and_config(monkeypatch)
 
     class Manager:
-        async def readiness(self, _scope: ProjectScope) -> dict[str, object]:
+        async def ensure_enabled(self, _scope: ProjectScope, _config) -> dict[str, object]:
             return {"armed": False, "enabled": False, "tools": [], "error": ""}
 
     def fail_registry(_scope: ProjectScope) -> bool:
@@ -271,7 +271,7 @@ async def test_prepare_waits_for_current_snapshot_and_verified_tools(
     expected = snapshot()
 
     class Manager:
-        async def readiness(self, _scope: ProjectScope) -> dict[str, object]:
+        async def ensure_enabled(self, _scope: ProjectScope, _config) -> dict[str, object]:
             return {
                 "armed": True,
                 "enabled": True,
@@ -323,7 +323,7 @@ async def test_pending_timeout_or_sem_failure_becomes_bounded_terminal_state(
     patch_scope_and_config(monkeypatch)
 
     class Manager:
-        async def readiness(self, _scope: ProjectScope) -> dict[str, object]:
+        async def ensure_enabled(self, _scope: ProjectScope, _config) -> dict[str, object]:
             return {
                 "armed": True,
                 "enabled": True,
@@ -363,7 +363,7 @@ async def test_missing_focused_tools_and_stale_snapshot_fail_closed(
         def __init__(self, tools: list[str]) -> None:
             self.tools = tools
 
-        async def readiness(self, _scope: ProjectScope) -> dict[str, object]:
+        async def ensure_enabled(self, _scope: ProjectScope, _config) -> dict[str, object]:
             return {
                 "armed": True,
                 "enabled": True,
@@ -409,7 +409,7 @@ async def test_malformed_readiness_after_registry_enable_uses_stable_failure_lan
     registry.set_mcp_enabled(SCOPE, True)
 
     class Manager:
-        async def readiness(self, _scope: ProjectScope) -> object:
+        async def ensure_enabled(self, _scope: ProjectScope, _config) -> object:
             return {"armed": "yes", "enabled": True, "tools": FOCUSED_TOOLS}
 
     monkeypatch.setattr(module, "get_mcp_manager", lambda: Manager())
@@ -436,7 +436,7 @@ async def test_enabled_readiness_with_error_is_inconsistent_and_disclosed(
     registry.set_mcp_enabled(SCOPE, True)
 
     class Manager:
-        async def readiness(self, _scope: ProjectScope) -> dict[str, object]:
+        async def ensure_enabled(self, _scope: ProjectScope, _config) -> dict[str, object]:
             return {
                 "armed": True,
                 "enabled": True,
@@ -727,7 +727,7 @@ def test_review_and_optional_repair_are_bounded_then_disclosed(
 
 
 @pytest.mark.parametrize("outcome", ["unresolved", "cancelled"])
-def test_terminal_checkpoint_requires_one_ack_then_disclosed_completion(
+def test_terminal_checkpoint_completes_with_disclosure_without_retry(
     registry: ReviewRegistry,
     outcome: str,
 ) -> None:
@@ -743,8 +743,6 @@ def test_terminal_checkpoint_requires_one_ack_then_disclosed_completion(
         ),
     )
     state = prepared(value=snapshot())
-    with pytest.raises(RepairableException, match="acknowledgement"):
-        module.enforce_completion(SimpleNamespace(), response(), state)
     final = response()
     module.enforce_completion(SimpleNamespace(), final, state)
     assert f"outcome {outcome}" in final.message
@@ -840,10 +838,10 @@ def test_terminal_checkpoint_never_discloses_unsafe_registry_findings(
         ),
     )
     state = prepared(value=snapshot())
-    with pytest.raises(RepairableException, match="acknowledgement") as first:
-        module.enforce_completion(SimpleNamespace(), response(), state)
-    assert safe in str(first.value)
-    assert unsafe not in str(first.value)
+    first = response()
+    module.enforce_completion(SimpleNamespace(), first, state)
+    assert safe in first.message
+    assert unsafe not in first.message
 
     final = response()
     module.enforce_completion(SimpleNamespace(), final, state)
@@ -867,8 +865,8 @@ def test_terminal_checkpoint_filters_unicode_confusables_without_echo(
         ),
     )
     state = prepared(value=snapshot())
-    with pytest.raises(RepairableException, match="acknowledgement") as first:
-        module.enforce_completion(SimpleNamespace(), response(), state)
+    first = response()
+    module.enforce_completion(SimpleNamespace(), first, state)
     final = response()
     module.enforce_completion(SimpleNamespace(), final, state)
 
@@ -877,7 +875,7 @@ def test_terminal_checkpoint_filters_unicode_confusables_without_echo(
         unicodedata.normalize("NFKC", unsafe),
         ASCII_DANGEROUS_INSTRUCTION,
     }:
-        assert blocked not in str(first.value)
+        assert blocked not in first.message
         assert blocked not in final.message
 
 
@@ -911,10 +909,10 @@ def test_terminal_checkpoint_filters_generalized_unsafe_registry_findings(
         ),
     )
     state = prepared(value=snapshot())
-    with pytest.raises(RepairableException, match="acknowledgement") as first:
-        module.enforce_completion(SimpleNamespace(), response(), state)
-    assert safe in str(first.value)
-    assert unsafe not in str(first.value)
+    first = response()
+    module.enforce_completion(SimpleNamespace(), first, state)
+    assert safe in first.message
+    assert unsafe not in first.message
 
     final = response()
     module.enforce_completion(SimpleNamespace(), final, state)
@@ -941,8 +939,8 @@ def test_safe_declarative_findings_remain_disclosable(
         ),
     )
     state = prepared(value=snapshot())
-    with pytest.raises(RepairableException, match="acknowledgement"):
-        module.enforce_completion(SimpleNamespace(), response(), state)
+    first = response()
+    module.enforce_completion(SimpleNamespace(), first, state)
 
     final = response()
     module.enforce_completion(SimpleNamespace(), final, state)
@@ -1031,3 +1029,42 @@ async def test_after_extension_uses_authoritative_response_and_always_pops(
     assert seen and seen[0][1].break_loop is False
     assert revalidated == [state]
     assert module.PREPARED_KEY not in agent.data
+
+
+@pytest.mark.asyncio
+async def test_chat_without_project_can_complete_normally(monkeypatch):
+    from usr.plugins.sem_review_loop.helpers.project_scope import NoProjectScopeError
+    patch_scope_and_config(monkeypatch)
+    monkeypatch.setattr(module, 'scope_for_agent', lambda *args: (_ for _ in ()).throw(NoProjectScopeError('No project')))
+    monkeypatch.setattr(module, 'get_mcp_manager', lambda: pytest.fail('No-project chat started MCP'))
+    state = await module.prepare_completion(SimpleNamespace())
+    final = response()
+    module.enforce_completion(SimpleNamespace(), final, state)
+    assert not state.mcp_armed
+    assert final.message == 'done'
+
+
+@pytest.mark.asyncio
+async def test_terminal_disclosure_updates_streamed_answer_without_retry(registry, monkeypatch):
+    after = importlib.import_module(
+        'usr.plugins.sem_review_loop.extensions.python.tool_execute_after._60_sem_review_completion_gate'
+    )
+    registry.record_checkpoint(SCOPE, ReviewCheckpoint(
+        SCOPE.project_id, 'fingerprint', 'unresolved', ('entity-1',), ('Boundary tests are missing.',),
+    ))
+    state = prepared(value=snapshot())
+    updates = []
+    agent = SimpleNamespace(
+        data={module.PREPARED_KEY: state},
+        loop_data=SimpleNamespace(params_temporary={
+            'log_item_response': SimpleNamespace(update=lambda **kwargs: updates.append(kwargs)),
+        }),
+    )
+    async def revalidate(value):
+        return value
+    monkeypatch.setattr(after, 'revalidate_completion', revalidate)
+    final = response()
+    await after.SemReviewCompletionGate(agent=agent).execute(tool_name='response', response=final)
+    assert final.break_loop is True
+    assert 'Boundary tests are missing.' in final.message
+    assert updates == [{'content': final.message}]

@@ -564,6 +564,12 @@ class RefreshCoordinator:
             if config.automatic_refresh:
                 self.schedule(scope, trigger, path_hints)
 
+    def poll(self, scope: ProjectScope) -> None:
+        """Check for external edits without cancelling an in-flight refresh."""
+        with self._lock:
+            if self._task_from_entry(self._tasks.get(self._key(scope))) is None:
+                self.schedule(scope, "status_heartbeat", [])
+
     def schedule(
         self,
         scope: ProjectScope,

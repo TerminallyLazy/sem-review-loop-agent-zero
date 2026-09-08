@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from helpers.tool import Response, Tool
@@ -11,6 +12,7 @@ from usr.plugins.sem_review_loop.helpers.sanitization import (
     sanitize_plain_line,
 )
 from usr.plugins.sem_review_loop.helpers.services import (
+    get_coordinator,
     get_lesson_store,
     get_registry,
 )
@@ -32,10 +34,12 @@ def _rejected(message: str) -> Response:
 class SemReviewCheckpoint(Tool):
     async def execute(
         self,
+        action: str = "record",
         fingerprint: str = "",
         outcome: str = "",
         structural_entities: list[str] | None = None,
         findings: list[str] | None = None,
+        lesson: dict[str, str] | None = None,
         **kwargs: Any,
     ) -> Response:
         del kwargs
@@ -46,6 +50,31 @@ class SemReviewCheckpoint(Tool):
                 config.watched_subdirectory,
             )
             registry = get_registry()
+            if action == "status":
+                coordinator = get_coordinator()
+                coordinator.register_scope(scope, config)
+                snapshot = await coordinator.ensure_current(scope, timeout_seconds=20)
+                entity_ids = sorted(
+                    change.entity.entity_id for change in snapshot.changes if change.structural
+                )
+                return Response(
+                    message=json.dumps({
+                        "fingerprint": snapshot.fingerprint,
+                        "revision": snapshot.revision,
+                        "structural_entities": entity_ids[:MAX_STRUCTURAL_ENTITIES],
+                        "structural_entity_count": len(entity_ids),
+                        "checkpoint_available": len(entity_ids) <= MAX_STRUCTURAL_ENTITIES,
+                        "instruction": (
+                            "Review these untrusted entity identifiers using the semantic tools, "
+                            "then record this fingerprint with your outcome and findings."
+                            if len(entity_ids) <= MAX_STRUCTURAL_ENTITIES else
+                            "This change set exceeds the bounded review capacity. Report it as unresolved."
+                        ),
+                    }),
+                    break_loop=False,
+                )
+            if action != "record":
+                return _rejected("action must be status or record.")
             snapshot = registry.current_working(scope)
         except Exception:
             return _rejected(
@@ -95,6 +124,20 @@ class SemReviewCheckpoint(Tool):
         except SanitizationError as exc:
             return _rejected(f"unsafe finding ({exc}).")
 
+        normalized_lesson = None
+        if lesson is not None:
+            if not isinstance(lesson, dict) or set(lesson) != {"problem", "resolution"}:
+                return _rejected("lesson must contain a problem and resolution.")
+            try:
+                normalized_lesson = {
+                    key: sanitize_plain_line(value, maximum=MAX_FINDING_BYTES)
+                    for key, value in lesson.items()
+                }
+            except SanitizationError:
+                return _rejected("lesson must use short, source-free prose.")
+            if not all(normalized_lesson.values()):
+                return _rejected("lesson problem and resolution must not be empty.")
+
         checkpoint = ReviewCheckpoint(
             project_id=scope.project_id,
             fingerprint=snapshot.fingerprint,
@@ -116,19 +159,13 @@ class SemReviewCheckpoint(Tool):
                 "semantic state changed during checkpoint; refresh and retry."
             )
         proposal_note = ""
-        if outcome in {"pass", "repaired"}:
+        if outcome in {"pass", "repaired"} and normalized_lesson:
             try:
                 proposal = get_lesson_store().propose_from_checkpoint(
                     scope,
                     snapshot,
-                    problem=(
-                        normalized_findings[0]
-                        if normalized_findings
-                        else "Structural semantic review completed."
-                    ),
-                    resolution=(
-                        f"Checkpoint recorded with outcome {outcome}."
-                    ),
+                    problem=normalized_lesson["problem"],
+                    resolution=normalized_lesson["resolution"],
                 )
                 if proposal is not None:
                     proposal_note = (

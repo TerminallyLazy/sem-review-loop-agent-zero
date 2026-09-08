@@ -12,6 +12,10 @@ class ProjectScopeError(RuntimeError):
     pass
 
 
+class NoProjectScopeError(ProjectScopeError):
+    """The chat has no project to review."""
+
+
 @dataclass(frozen=True)
 class ProjectScope:
     context_id: str
@@ -93,7 +97,7 @@ def scope_for_agent(
 ) -> ProjectScope:
     context = getattr(agent, "context", None)
     if context is None:
-        raise ProjectScopeError(
+        raise NoProjectScopeError(
             "Semantic Review requires an active Agent Zero project."
         )
 
@@ -101,7 +105,7 @@ def scope_for_agent(
 
     project_name = projects.get_context_project_name(context)
     if not project_name:
-        raise ProjectScopeError(
+        raise NoProjectScopeError(
             "Semantic Review requires an active Agent Zero project."
         )
     project_root = Path(projects.get_project_folder(project_name))

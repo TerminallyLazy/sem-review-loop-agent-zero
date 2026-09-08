@@ -35,4 +35,13 @@ class SemReviewCompletionGate(Extension):
             prepared = await prepare_completion(self.agent)
         if response.break_loop is True:
             prepared = await revalidate_completion(prepared)
+        original_message = response.message
         enforce_completion(self.agent, response, prepared)
+        if response.message != original_message:
+            # The response is streamed before this hook. Keep the visible final
+            # answer aligned with the disclosed result returned to the caller.
+            loop_data = getattr(self.agent, "loop_data", None)
+            temporary = getattr(loop_data, "params_temporary", {})
+            log_item = temporary.get("log_item_response") if isinstance(temporary, dict) else None
+            if log_item is not None:
+                log_item.update(content=response.message)

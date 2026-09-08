@@ -4,73 +4,75 @@
     import { store } from "/plugins/sem_review_loop/webui/sem-review-store.js";
   </script>
   <style>
-    .sem-review-host, .sem-review-panel, .sem-review-ledger { min-width: 0; min-height: 0; }
     .sem-review-host { display: contents; }
-    .sem-review-panel {
-      box-sizing: border-box; display: flex; width: 100%; height: 100%; overflow: hidden;
-      color: var(--color-text, #d9dde3); background: var(--color-background, #17191d);
-      font-family: var(--font-family-main, sans-serif);
-    }
-    .sem-review-ledger { display: flex; flex-direction: column; width: 100%; border: 1px solid var(--color-border, #343941); }
-    .sem-review-header { display: flex; align-items: center; justify-content: space-between; gap: .8rem; padding: .85rem 1rem; border-bottom: 1px solid var(--color-border, #343941); }
+    .sem-review-panel { box-sizing: border-box; width: 100%; height: 100%; min-width: 0; min-height: 0; color: var(--color-text); background: var(--color-background); font: .875rem/1.5 var(--font-family-main); container-type: inline-size; }
+    .sem-review-panel * { box-sizing: border-box; }
+    .sem-review-ledger { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+    .sem-review-header { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: 1rem 1.25rem .75rem; }
     .sem-review-heading { min-width: 0; }
-    .sem-review-kicker, .sem-review-label { color: var(--color-text-secondary, #939aa5); font-size: .68rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
-    .sem-review-heading strong { display: block; margin-top: .15rem; font-size: 1rem; }
-    .sem-review-heading small { display: block; margin-top: .2rem; color: var(--color-text-secondary, #939aa5); overflow-wrap: anywhere; }
-    .sem-review-actions, .sem-review-tabs, .sem-review-toolbar, .sem-review-inline-actions { display: flex; align-items: center; gap: .45rem; flex-wrap: wrap; }
-    .sem-review-actions { justify-content: flex-end; }
-    .sem-review-status { display: flex; align-items: center; justify-content: flex-end; gap: .35rem; flex-wrap: wrap; }
-    .sem-review-pill, .sem-review-badge { display: inline-flex; align-items: center; gap: .3rem; padding: .28rem .52rem; border: 1px solid var(--color-border, #343941); border-radius: 999px; color: var(--color-text-secondary, #939aa5); background: var(--color-background-secondary, #20242a); font-size: .7rem; }
-    .sem-review-pill.is-on, .sem-review-badge.is-structural { color: var(--color-warning, #d4a85b); border-color: color-mix(in srgb, var(--color-warning, #d4a85b) 55%, var(--color-border, #343941)); }
-    .sem-review-tabs { padding: .55rem .75rem 0; border-bottom: 1px solid var(--color-border, #343941); }
-    .sem-review-tab { border: 0; border-bottom: 2px solid transparent; padding: .55rem .65rem; color: var(--color-text-secondary, #939aa5); background: transparent; cursor: pointer; }
-    .sem-review-tab.is-active { border-bottom-color: var(--color-accent, #83a5d6); color: var(--color-text, #d9dde3); }
-    .sem-review-body { min-height: 0; overflow: auto; padding: .8rem; }
-    .sem-review-toolbar { justify-content: space-between; margin-bottom: .75rem; }
-    .sem-review-toolbar-note { flex: 1 1 14rem; min-width: 0; color: var(--color-text-secondary, #939aa5); font-size: .72rem; overflow-wrap: anywhere; }
-    .sem-review-toolbar select, .sem-review-toolbar input, .sem-review-field input, .sem-review-field select { min-height: 2rem; border: 1px solid var(--color-border, #343941); border-radius: .35rem; color: inherit; background: var(--color-background-secondary, #20242a); padding: .35rem .5rem; }
-    .sem-review-button { min-height: 2rem; border: 1px solid var(--color-border, #343941); border-radius: .35rem; color: inherit; background: var(--color-background-secondary, #20242a); padding: .35rem .6rem; cursor: pointer; }
-    .sem-review-button:hover { border-color: var(--color-accent, #83a5d6); }
-    .sem-review-button:disabled { cursor: wait; opacity: .55; }
-    .sem-review-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .45rem; margin-bottom: .75rem; }
-    .sem-review-metric, .sem-review-card { min-width: 0; border: 1px solid var(--color-border, #343941); background: var(--color-background-secondary, #20242a); }
-    .sem-review-metric { padding: .65rem; }
-    .sem-review-metric strong { display: block; margin-top: .15rem; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
-    .sem-review-empty, .sem-review-note { padding: 1rem; border: 1px dashed var(--color-border, #343941); color: var(--color-text-secondary, #939aa5); }
-    .sem-review-groups { display: grid; gap: .6rem; }
-    .sem-review-group-title { padding: .45rem .55rem; color: var(--color-text-secondary, #939aa5); background: var(--color-background-secondary, #20242a); font-size: .75rem; overflow-wrap: anywhere; }
-    .sem-review-change { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .6rem; width: 100%; border: 0; border-bottom: 1px solid var(--color-border, #343941); padding: .65rem .55rem; color: inherit; background: var(--color-background, #17191d); text-align: left; cursor: pointer; }
-    .sem-review-change:hover, .sem-review-change.is-selected { background: color-mix(in srgb, var(--color-accent, #83a5d6) 12%, var(--color-background, #17191d)); }
-    .sem-review-change-name, .sem-review-card-title { font-weight: 650; overflow-wrap: anywhere; }
-    .sem-review-change-meta, .sem-review-card-meta { display: flex; align-items: center; gap: .45rem; flex-wrap: wrap; margin-top: .25rem; color: var(--color-text-secondary, #939aa5); font-size: .73rem; }
-    .sem-review-detail { display: grid; gap: .65rem; margin-top: .85rem; }
-    .sem-review-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; }
-    .sem-review-detail-pane { min-width: 0; border: 1px solid var(--color-border, #343941); background: #101216; }
-    .sem-review-detail-pane header { padding: .4rem .55rem; color: var(--color-text-secondary, #939aa5); font-size: .7rem; text-transform: uppercase; }
-    .sem-review-detail-pane pre { max-height: 18rem; margin: 0; overflow: auto; padding: .65rem; color: #cbd2dc; font: .72rem/1.45 var(--font-family-mono, monospace); white-space: pre-wrap; overflow-wrap: anywhere; }
-    .sem-review-diff { min-width: 0; max-width: 100%; overflow: hidden; border: 1px solid var(--color-border, #343941); background: #101216; }
-    .sem-review-diff-title { padding: .45rem .6rem; color: var(--color-text-secondary, #939aa5); font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-    .sem-review-diff-lines { max-height: 24rem; overflow: auto; padding: .35rem 0; font: .72rem/1.5 var(--font-family-mono, monospace); }
-    .sem-review-diff-line { display: grid; grid-template-columns: 1.25rem minmax(0, 1fr); min-width: 0; padding: 0 .6rem; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
-    .sem-review-diff-line > code { min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
-    .sem-review-diff-line.is-removed { color: #ffd2d2; background: color-mix(in srgb, #d66a6a 18%, #101216); }
-    .sem-review-diff-line.is-added { color: #c9f4d0; background: color-mix(in srgb, #5fae73 18%, #101216); }
-    .sem-review-diff-line.is-same { color: #cbd2dc; }
-    .sem-review-diff-marker { color: currentColor; font-weight: 800; user-select: none; }
-    .sem-review-card { padding: .7rem; }
-    .sem-review-card + .sem-review-card { margin-top: .55rem; }
-    .sem-review-card p { margin: .4rem 0 0; color: var(--color-text-secondary, #939aa5); overflow-wrap: anywhere; }
-    .sem-review-card pre { max-width: 100%; max-height: 18rem; box-sizing: border-box; margin: .6rem 0 0; overflow: auto; padding: .6rem; color: #cbd2dc; background: #101216; font: .72rem/1.45 var(--font-family-mono, monospace); white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
-    .sem-review-card-actions { display: flex; justify-content: flex-end; gap: .45rem; margin-top: .65rem; }
-    .sem-review-error { margin-bottom: .7rem; padding: .55rem .7rem; border-left: 3px solid var(--color-error, #c96c6c); color: var(--color-error, #c96c6c); background: color-mix(in srgb, var(--color-error, #c96c6c) 10%, transparent); overflow-wrap: anywhere; }
-    .sem-review-loading { display: inline-flex; align-items: center; gap: .4rem; color: var(--color-text-secondary, #939aa5); font-size: .78rem; }
-    .sem-review-loading .material-symbols-outlined { animation: sem-review-spin 1s linear infinite; }
-    .sem-review-field { display: grid; gap: .35rem; margin-bottom: .8rem; }
-    .sem-review-field small { color: var(--color-text-secondary, #939aa5); overflow-wrap: anywhere; }
-    .sem-review-switch { display: flex; align-items: center; gap: .5rem; }
-    @keyframes sem-review-spin { to { transform: rotate(360deg); } }
-    @media (max-width: 680px) { .sem-review-summary, .sem-review-detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sem-review-header { align-items: flex-start; } }
-    @media (max-width: 420px) { .sem-review-summary { grid-template-columns: 1fr 1fr; } }
+    .sem-review-heading strong { display: block; font-size: 1.05rem; font-weight: 600; }
+    .sem-review-heading small, .sem-review-muted { color: var(--color-text-muted); font-size: .8rem; overflow-wrap: anywhere; }
+    .sem-review-actions, .sem-review-inline-actions, .sem-review-card-actions { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+    .sem-review-button { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; min-height: 2.25rem; padding: .4rem .75rem; border: 1px solid var(--color-border); border-radius: .5rem; color: var(--color-text); background: var(--color-panel); font: inherit; cursor: pointer; }
+    .sem-review-button:hover { background: var(--color-background-hover); }
+    .sem-review-button:active { background: var(--color-input); }
+    .sem-review-button:disabled { opacity: .5; cursor: default; }
+    .sem-review-button.is-primary { background: var(--color-highlight); color: white; border-color: transparent; }
+    .sem-review-panel :is(button, input, select, summary):focus-visible { outline: 2px solid var(--color-highlight); outline-offset: 3px; }
+    .sem-review-panel .material-symbols-outlined { font-size: 1.1rem; }
+    .sem-review-tabs { display: flex; gap: .25rem; padding: 0 1.25rem; border-bottom: 1px solid var(--color-border); }
+    .sem-review-tab { padding: .65rem .8rem; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--color-text-muted); font: inherit; cursor: pointer; }
+    .sem-review-tab.is-active { border-bottom-color: var(--color-highlight); color: var(--color-text); font-weight: 500; }
+    .sem-review-body { flex: 1; min-height: 0; overflow: auto; padding: 1.25rem; }
+    .sem-review-body > section { display: grid; gap: 1rem; }
+    .sem-review-toolbar { display: flex; align-items: end; gap: .65rem; flex-wrap: wrap; }
+    .sem-review-toolbar label { display: grid; gap: .25rem; flex: 1 1 7rem; min-width: 0; }
+    .sem-review-label { color: var(--color-text-muted); font-size: .75rem; }
+    .sem-review-panel :is(input[type=text], input[type=search], select) { min-width: 0; width: 100%; min-height: 2.25rem; padding: .45rem .6rem; border: 1px solid var(--color-border); border-radius: .5rem; background: var(--color-input); color: var(--color-text); font: inherit; }
+    .sem-review-summary { display: flex; align-items: center; gap: 1.5rem; padding: .85rem 1rem; border: 1px solid var(--color-border); border-radius: .65rem; background: var(--color-panel); }
+    .sem-review-metric strong { font-size: 1.2rem; font-weight: 500; font-variant-numeric: tabular-nums; }
+    .sem-review-metric span { display: block; color: var(--color-text-muted); font-size: .75rem; }
+    .sem-review-filters { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+    .sem-review-filters input[type=search] { flex: 1 1 10rem; }
+    .sem-review-filters label { display: flex; align-items: center; gap: .4rem; font-size: .8rem; }
+    .sem-review-empty { display: grid; justify-items: center; gap: .65rem; padding: 2rem 1rem; text-align: center; color: var(--color-text-muted); }
+    .sem-review-empty .material-symbols-outlined { font-size: 1.8rem; opacity: .65; }
+    .sem-review-empty p { margin: 0; max-width: 28rem; }
+    .sem-review-groups { display: grid; gap: 1rem; }
+    .sem-review-group { min-width: 0; border: 1px solid var(--color-border); border-radius: .65rem; overflow: hidden; }
+    .sem-review-group-title { display: flex; align-items: center; gap: .45rem; padding: .6rem .75rem; background: var(--color-panel); font: .78rem/1.5 var(--font-family-code); overflow-wrap: anywhere; }
+    .sem-review-change { display: flex; align-items: center; justify-content: space-between; gap: .75rem; width: 100%; padding: .75rem; border: 0; border-top: 1px solid var(--color-border); color: var(--color-text); background: transparent; text-align: left; cursor: pointer; font: inherit; }
+    .sem-review-change:hover, .sem-review-change.is-selected { background: var(--color-background-hover); }
+    .sem-review-change-name { font-weight: 500; overflow-wrap: anywhere; }
+    .sem-review-change-meta, .sem-review-card-meta { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-top: .2rem; font-size: .75rem; color: var(--color-text-muted); overflow-wrap: anywhere; }
+    .sem-review-badge { flex-shrink: 0; padding: .15rem .5rem; border-radius: .35rem; color: var(--color-text-muted); background: var(--color-panel); font-size: .7rem; }
+    .sem-review-badge.is-structural { color: var(--color-text); background: color-mix(in srgb, var(--color-highlight) 18%, var(--color-panel)); }
+    .sem-review-card, .sem-review-connection { min-width: 0; padding: 1rem; border: 1px solid var(--color-border); border-radius: .65rem; background: var(--color-panel); }
+    .sem-review-card-title { margin: 0; font-size: .9rem; font-weight: 500; overflow-wrap: anywhere; }
+    .sem-review-card p { margin: .45rem 0 0; overflow-wrap: anywhere; }
+    .sem-review-card-actions { margin-top: .8rem; }
+    .sem-review-detail { display: grid; gap: .85rem; min-width: 0; }
+    .sem-review-detail .sem-review-inline-actions { margin-top: .75rem; }
+    .sem-review-note { margin: 0; color: var(--color-text-muted); font-size: .8rem; }
+    .sem-review-connection { margin-top: 1.25rem; padding: .65rem .8rem; font-size: .8rem; }
+    .sem-review-connection summary { cursor: pointer; }
+    .sem-review-connection p { margin: .6rem 0; }
+    .sem-review-connection code { overflow-wrap: anywhere; }
+    .sem-review-diff { min-width: 0; max-width: 100%; overflow: hidden; border: 1px solid var(--color-border); border-radius: .65rem; background: var(--color-input); }
+    .sem-review-diff-title { padding: .55rem .75rem; border-bottom: 1px solid var(--color-border); font-size: .8rem; }
+    .sem-review-diff-lines { max-height: 30rem; overflow: auto; padding: .4rem 0; font: .78rem/1.65 var(--font-family-code); }
+    .sem-review-diff-line { display: grid; grid-template-columns: 1.25rem minmax(0, 1fr); padding: 0 .75rem; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
+    .sem-review-diff-line code { min-width: 0; font: inherit; }
+    .sem-review-diff-line.is-removed { background: color-mix(in srgb, var(--color-error-text) 14%, transparent); }
+    .sem-review-diff-line.is-added { background: color-mix(in srgb, #39834a 22%, transparent); }
+    .sem-review-diff-marker { font-weight: 600; user-select: none; }
+    .sem-review-card pre { max-width: 100%; max-height: 20rem; overflow: auto; padding: .75rem; background: var(--color-input); border-radius: .4rem; font: .78rem/1.6 var(--font-family-code); white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
+    .sem-review-error { padding: .75rem; margin-bottom: 1rem; border-left: 3px solid var(--color-error-text); background: var(--color-panel); overflow-wrap: anywhere; }
+    .sem-review-loading { min-height: 1.5rem; font-size: .75rem; color: var(--color-text-muted); margin: -.5rem 0 .5rem; }
+    .sem-review-findings { margin: .7rem 0 0; padding-left: 1.25rem; }
+    .sem-review-findings li { margin-bottom: .5rem; overflow-wrap: anywhere; }
+    @container (max-width: 400px) { .sem-review-header, .sem-review-body { padding: .85rem; } .sem-review-tabs { padding: 0 .85rem; } .sem-review-summary { gap: 1rem; } .sem-review-change { align-items: flex-start; } }
+    @media (prefers-reduced-motion: reduce) { .sem-review-panel * { animation: none !important; transition: none !important; } }
   </style>
 </head>
 <body>
@@ -79,91 +81,100 @@
       <div class="sem-review-panel" x-create="$store.semReviewLoop.onMount($el, xAttrs($el) || {})" x-destroy="$store.semReviewLoop.cleanup()">
         <section class="sem-review-ledger" aria-label="Semantic Review">
           <header class="sem-review-header">
-            <div class="sem-review-heading">
-              <span class="sem-review-kicker">Local semantic ledger</span>
-              <strong>Semantic Review</strong>
-              <small x-text="$store.semReviewLoop.watchedLabel()"></small>
-            </div>
-            <div class="sem-review-actions">
-              <div class="sem-review-status" aria-live="polite">
-                <span class="sem-review-pill"><span class="material-symbols-outlined" aria-hidden="true">sync</span><span x-text="$store.semReviewLoop.liveStateLabel()"></span></span>
-                <span class="sem-review-pill"><span class="material-symbols-outlined" aria-hidden="true">phonelink_lock</span><span>Local-only</span></span>
-              </div>
-              <span class="sem-review-pill" :class="{ 'is-on': $store.semReviewLoop.payload?.review?.mcp_enabled }">
-                <span class="material-symbols-outlined" aria-hidden="true">lock</span>
-                <span x-text="$store.semReviewLoop.payload?.review?.mcp_enabled ? 'MCP armed' : 'MCP off'"></span>
-              </span>
-              <button type="button" class="sem-review-button" @click="$store.semReviewLoop.refreshStatus()" :disabled="$store.semReviewLoop.loading">Refresh</button>
-            </div>
+            <div class="sem-review-heading"><strong>Semantic Review</strong><small x-text="$store.semReviewLoop.watchedLabel()"></small></div>
+            <button type="button" class="sem-review-button" @click="$store.semReviewLoop.refreshDiff()" :disabled="$store.semReviewLoop.busy || !$store.semReviewLoop.contextId" aria-label="Refresh changes"><span class="material-symbols-outlined" aria-hidden="true">refresh</span>Refresh</button>
           </header>
-
           <nav class="sem-review-tabs" aria-label="Semantic Review views">
-            <button type="button" class="sem-review-tab" :class="{ 'is-active': $store.semReviewLoop.activeTab === 'changes' }" @click="$store.semReviewLoop.activeTab = 'changes'">Changes</button>
-            <button type="button" class="sem-review-tab" :class="{ 'is-active': $store.semReviewLoop.activeTab === 'review' }" @click="$store.semReviewLoop.activeTab = 'review'">Review</button>
-            <button type="button" class="sem-review-tab" :class="{ 'is-active': $store.semReviewLoop.activeTab === 'lessons' }" @click="$store.semReviewLoop.activeTab = 'lessons'">Lessons (<span x-text="$store.semReviewLoop.pendingLessons().length"></span>)</button>
+            <template x-for="tab in ['changes', 'review', 'lessons']" :key="tab">
+              <button type="button" class="sem-review-tab" :class="{ 'is-active': $store.semReviewLoop.activeTab === tab }" :aria-current="$store.semReviewLoop.activeTab === tab ? 'page' : null" @click="$store.semReviewLoop.showTab(tab)" x-text="tab === 'changes' ? 'Changes' : tab === 'review' ? 'Review' : 'Lessons'"></button>
+            </template>
           </nav>
-
           <main class="sem-review-body">
-            <div class="sem-review-loading" x-show="$store.semReviewLoop.loading"><span class="material-symbols-outlined">progress_activity</span><span>Refreshing semantic state</span></div>
-
+            <div class="sem-review-loading" role="status" x-text="$store.semReviewLoop.busy ? 'Working…' : $store.semReviewLoop.payload?.review?.pending_generation ? 'Checking for changes…' : ''"></div>
+            <div class="sem-review-error" role="alert" x-show="$store.semReviewLoop.visibleError()" x-text="$store.semReviewLoop.visibleError()"></div>
             <section x-show="$store.semReviewLoop.activeTab === 'changes'">
-              <div class="sem-review-card" style="margin-bottom:.8rem">
-                <div class="sem-review-card-title">Connect semantic tools to Agent Zero</div>
-                <p>Enable this project's local MCP server so Agent Zero can call <code>sem_diff</code>, <code>sem_context</code>, and <code>sem_impact</code> during coding tasks. Nothing is sent to the cloud.</p>
-                <div class="sem-review-card-meta"><span x-text="$store.semReviewLoop.payload?.review?.mcp_enabled ? 'Connected and verified' : 'Setup required'"></span><span>Tools:</span><span x-text="$store.semReviewLoop.mcpToolsLabel()"></span></div>
-                <div class="sem-review-card-actions"><button type="button" class="sem-review-button" x-show="!$store.semReviewLoop.payload?.review?.mcp_enabled && !$store.semReviewLoop.mcpPreview" @click="$store.semReviewLoop.previewMcp()" :disabled="$store.semReviewLoop.busy">Review MCP setup</button><button type="button" class="sem-review-button" x-show="!$store.semReviewLoop.payload?.review?.mcp_enabled && $store.semReviewLoop.mcpPreview" @click="$store.semReviewLoop.mcpConfirmed = !$store.semReviewLoop.mcpConfirmed" x-text="$store.semReviewLoop.mcpConfirmed ? 'Setup reviewed' : 'Confirm configuration'"></button><button type="button" class="sem-review-button" x-show="!$store.semReviewLoop.payload?.review?.mcp_enabled && $store.semReviewLoop.mcpPreview" @click="$store.semReviewLoop.enableMcp()" :disabled="!$store.semReviewLoop.mcpConfirmed || $store.semReviewLoop.busy">Enable semantic tools</button><button type="button" class="sem-review-button" x-show="$store.semReviewLoop.payload?.review?.mcp_enabled" @click="$store.semReviewLoop.disableMcp()" :disabled="$store.semReviewLoop.busy">Disable semantic tools</button></div>
-                <template x-if="$store.semReviewLoop.mcpPreview"><pre x-text="$store.semReviewLoop.formatResult($store.semReviewLoop.mcpPreview.entry)"></pre></template>
-              </div>
               <div class="sem-review-toolbar">
-                <label><span class="sem-review-label">View </span><select x-model="$store.semReviewLoop.diffMode" @change="$store.semReviewLoop.refreshDiff()"><option value="working">Working tree + tool files</option><option value="staged">Staged</option><option value="commit">Commit</option><option value="range">Range</option></select></label>
-                <label x-show="$store.semReviewLoop.diffMode === 'commit'"><span class="sem-review-label">Commit ref </span><input type="text" aria-label="Commit ref" placeholder="HEAD" x-model="$store.semReviewLoop.commitRef" @keydown.enter.prevent="$store.semReviewLoop.refreshDiff()"></label>
-                <label x-show="$store.semReviewLoop.diffMode === 'range'"><span class="sem-review-label">From </span><input type="text" aria-label="Range from ref" placeholder="HEAD~1" x-model="$store.semReviewLoop.fromRef" @keydown.enter.prevent="$store.semReviewLoop.refreshDiff()"></label>
-                <label x-show="$store.semReviewLoop.diffMode === 'range'"><span class="sem-review-label">To </span><input type="text" aria-label="Range to ref" placeholder="HEAD" x-model="$store.semReviewLoop.toRef" @keydown.enter.prevent="$store.semReviewLoop.refreshDiff()"></label>
-                <span class="sem-review-toolbar-note">Working tree includes all tracked and untracked files in the watched project; files above 2 MiB are excluded from source analysis.</span>
-                <div class="sem-review-inline-actions"><button type="button" class="sem-review-button" @click="$store.semReviewLoop.refreshDiff()" :disabled="$store.semReviewLoop.busy">Run diff</button></div>
+                <label><span class="sem-review-label">Compare</span><select x-model="$store.semReviewLoop.diffMode" @change="$store.semReviewLoop.refreshDiff()" :disabled="$store.semReviewLoop.busy"><option value="working">Uncommitted changes</option><option value="staged">Staged changes</option><option value="commit">One commit</option><option value="range">Commit range</option></select></label>
+                <label x-show="$store.semReviewLoop.diffMode === 'commit'"><span class="sem-review-label">Commit</span><input type="text" aria-label="Commit ref" placeholder="HEAD" x-model="$store.semReviewLoop.commitRef" @keydown.enter.prevent="$store.semReviewLoop.refreshDiff()"></label>
+                <label x-show="$store.semReviewLoop.diffMode === 'range'"><span class="sem-review-label">From</span><input type="text" aria-label="Range from ref" placeholder="HEAD~1" x-model="$store.semReviewLoop.fromRef" @keydown.enter.prevent="$store.semReviewLoop.refreshDiff()"></label>
+                <label x-show="$store.semReviewLoop.diffMode === 'range'"><span class="sem-review-label">To</span><input type="text" aria-label="Range to ref" placeholder="HEAD" x-model="$store.semReviewLoop.toRef" @keydown.enter.prevent="$store.semReviewLoop.refreshDiff()"></label>
+                <button type="button" class="sem-review-button" x-show="['commit','range'].includes($store.semReviewLoop.diffMode)" @click="$store.semReviewLoop.refreshDiff()" :disabled="$store.semReviewLoop.busy">Compare</button>
               </div>
-              <div class="sem-review-summary">
-                <div class="sem-review-metric"><span class="sem-review-label">Entities</span><strong x-text="$store.semReviewLoop.summary().total"></strong></div>
-                <div class="sem-review-metric"><span class="sem-review-label">Structural</span><strong x-text="$store.semReviewLoop.summary().structural"></strong></div>
-                <div class="sem-review-metric"><span class="sem-review-label">Added / changed</span><strong x-text="`${$store.semReviewLoop.summary().added} / ${$store.semReviewLoop.summary().modified}`"></strong></div>
-                <div class="sem-review-metric"><span class="sem-review-label">Revision</span><strong x-text="$store.semReviewLoop.payload?.review?.revision ?? '—'"></strong></div>
+              <div class="sem-review-summary" aria-label="Change summary" x-show="$store.semReviewLoop.snapshot()">
+                <div class="sem-review-metric"><strong x-text="$store.semReviewLoop.summary().file_count"></strong><span>Files</span></div>
+                <div class="sem-review-metric"><strong x-text="$store.semReviewLoop.summary().total"></strong><span>Entities</span></div>
+                <div class="sem-review-metric"><strong x-text="$store.semReviewLoop.summary().structural"></strong><span>Structural</span></div>
               </div>
-              <template x-if="$store.semReviewLoop.groupedChanges().length === 0"><div class="sem-review-empty">No semantic entities in this view.</div></template>
+              <div class="sem-review-filters" x-show="$store.semReviewLoop.changes().length">
+                <input type="search" aria-label="Filter changes" placeholder="Find a file or function…" x-model="$store.semReviewLoop.searchQuery">
+                <label><input type="checkbox" x-model="$store.semReviewLoop.structuralOnly">Structural only</label>
+              </div>
+              <template x-if="$store.semReviewLoop.groupedChanges().length === 0"><div class="sem-review-empty"><span class="material-symbols-outlined" aria-hidden="true">difference</span><p x-text="$store.semReviewLoop.emptyMessage()"></p></div></template>
               <div class="sem-review-groups">
                 <template x-for="group in $store.semReviewLoop.groupedChanges()" :key="group.path">
-                  <div>
-                    <div class="sem-review-group-title" x-text="group.path"></div>
+                  <div class="sem-review-group">
+                    <div class="sem-review-group-title"><span class="material-symbols-outlined" aria-hidden="true">draft</span><span x-text="group.path"></span></div>
                     <template x-for="change in group.changes" :key="change.entity_id">
                       <button type="button" class="sem-review-change" :class="{ 'is-selected': $store.semReviewLoop.selectedEntityId === change.entity_id }" @click="$store.semReviewLoop.selectEntity(change.entity_id); $store.semReviewLoop.activeTab = 'review'">
-                        <span><span class="sem-review-change-name" x-text="change.entity_name || change.entity_id"></span><span class="sem-review-change-meta"><span x-text="change.change_type"></span><span x-text="`${change.start_line ?? '—'}–${change.end_line ?? '—'}`"></span></span></span>
-                        <span class="sem-review-badge" :class="{ 'is-structural': change.structural }" x-text="change.structural ? 'structural' : 'cosmetic'"></span>
+                        <span><span class="sem-review-change-name" x-text="change.entity_name || change.entity_id"></span><span class="sem-review-change-meta"><span x-text="change.change_type"></span><span x-text="change.start_line ? `Line ${change.start_line}` : ''"></span></span></span>
+                        <span class="sem-review-badge" :class="{ 'is-structural': change.structural }" x-text="change.structural ? 'Structural' : 'Cosmetic'"></span>
                       </button>
                     </template>
                   </div>
                 </template>
               </div>
+              <p class="sem-review-note">Structural changes affect functions, classes, or their behavior. Uncommitted changes include tracked and untracked files; source files above 2 MiB are excluded.</p>
             </section>
-
             <section x-show="$store.semReviewLoop.activeTab === 'review'">
+              <div class="sem-review-card">
+                <h3 class="sem-review-card-title" x-text="$store.semReviewLoop.checkpointLabel()"></h3>
+                <p class="sem-review-note">Agent Zero reviews structural changes before completing a coding task. Findings and repair results appear here.</p>
+                <ul class="sem-review-findings" x-show="$store.semReviewLoop.payload?.review?.checkpoint?.findings?.length"><template x-for="(finding, index) in ($store.semReviewLoop.payload?.review?.checkpoint?.findings || [])" :key="index"><li x-text="finding"></li></template></ul>
+                <div class="sem-review-card-meta" x-show="$store.semReviewLoop.payload?.review?.repair_cycle"><span x-text="`Repair cycle ${$store.semReviewLoop.payload?.review?.repair_cycle}`"></span></div>
+              </div>
               <template x-if="$store.semReviewLoop.selectedChange()">
                 <div class="sem-review-detail">
-                  <div class="sem-review-card"><div class="sem-review-card-title" x-text="$store.semReviewLoop.selectedChange()?.entity_name"></div><div class="sem-review-card-meta"><span x-text="$store.semReviewLoop.selectedChange()?.file_path"></span><span x-text="$store.semReviewLoop.selectedChange()?.change_type"></span><span x-text="$store.semReviewLoop.snapshot()?.fingerprint"></span></div><div class="sem-review-inline-actions"><button type="button" class="sem-review-button" @click="$store.semReviewLoop.loadDetail()">Load detail</button><button type="button" class="sem-review-button" @click="$store.semReviewLoop.loadContext()">Context</button><button type="button" class="sem-review-button" @click="$store.semReviewLoop.loadImpact()">Impact</button></div></div>
-                  <template x-if="$store.semReviewLoop.detail"><div class="sem-review-diff" aria-label="Semantic diff"><div class="sem-review-diff-title">Semantic diff</div><div class="sem-review-diff-lines"><template x-for="(line, index) in $store.semReviewLoop.detailDiffLines()" :key="`${index}-${line.kind}`"><div class="sem-review-diff-line" :class="`is-${line.kind}`"><span class="sem-review-diff-marker" aria-hidden="true" x-text="line.kind === 'removed' ? '−' : line.kind === 'added' ? '+' : ' ' "></span><code x-text="line.text"></code></div></template></div></div></template>
-                  <template x-if="$store.semReviewLoop.contextResult"><div class="sem-review-card"><div class="sem-review-card-title">Entity context</div><pre x-text="$store.semReviewLoop.formatResult($store.semReviewLoop.contextResult)"></pre></div></template>
-                  <template x-if="$store.semReviewLoop.impactResult"><div class="sem-review-card"><div class="sem-review-card-title">Impact</div><pre x-text="$store.semReviewLoop.formatResult($store.semReviewLoop.impactResult)"></pre></div></template>
+                  <div class="sem-review-card">
+                    <h3 class="sem-review-card-title" x-text="$store.semReviewLoop.selectedChange()?.entity_name"></h3>
+                    <div class="sem-review-card-meta"><span x-text="$store.semReviewLoop.selectedChange()?.file_path"></span><span x-text="$store.semReviewLoop.selectedChange()?.change_type"></span></div>
+                    <div class="sem-review-inline-actions"><button type="button" class="sem-review-button" @click="$store.semReviewLoop.loadDetail()" :disabled="$store.semReviewLoop.busy">Code</button><button type="button" class="sem-review-button" @click="$store.semReviewLoop.loadContext()" :disabled="$store.semReviewLoop.busy">Related context</button><button type="button" class="sem-review-button" @click="$store.semReviewLoop.loadImpact()" :disabled="$store.semReviewLoop.busy">Impact</button></div>
+                  </div>
+                  <template x-if="$store.semReviewLoop.detail"><div class="sem-review-diff" aria-label="Semantic diff"><div class="sem-review-diff-title">Code changes <span class="sem-review-muted"> · − removed · + added</span></div><div class="sem-review-diff-lines"><template x-for="(line, index) in $store.semReviewLoop.detailDiffLines()" :key="`${index}-${line.kind}`"><div class="sem-review-diff-line" :class="`is-${line.kind}`"><span class="sem-review-diff-marker" aria-hidden="true" x-text="line.kind === 'removed' ? '−' : line.kind === 'added' ? '+' : ' '"></span><code x-text="line.text"></code></div></template></div></div></template>
+                  <template x-if="$store.semReviewLoop.contextResult">
+                    <section class="sem-review-card" aria-label="Related context">
+                      <h3 class="sem-review-card-title">Related context</h3>
+                      <p class="sem-review-note" x-show="$store.semReviewLoop.contextResult.truncated">Some context was omitted to fit the configured token budget.</p>
+                      <template x-for="(entry, index) in $store.semReviewLoop.contextEntries()" :key="index"><div><div class="sem-review-card-meta"><span x-text="entry.name"></span><span x-text="entry.file"></span><span x-text="entry.role"></span></div><pre x-text="entry.content"></pre></div></template>
+                      <p class="sem-review-note" x-show="!$store.semReviewLoop.contextEntries().length">No source context was returned for this entity.</p>
+                      <details><summary>Response details</summary><pre x-text="$store.semReviewLoop.formatResult($store.semReviewLoop.contextResult)"></pre></details>
+                    </section>
+                  </template>
+                  <template x-if="$store.semReviewLoop.impactResult">
+                    <section class="sem-review-card" aria-label="Impact">
+                      <h3 class="sem-review-card-title">Impact</h3>
+                      <template x-for="group in $store.semReviewLoop.impactGroups()" :key="group.title"><div><div class="sem-review-card-meta"><strong x-text="group.title"></strong><span x-text="group.items.length"></span></div><ul class="sem-review-findings" x-show="group.items.length"><template x-for="(item, index) in group.items" :key="index"><li x-text="$store.semReviewLoop.relatedEntityLabel(item)"></li></template></ul></div></template>
+                      <p class="sem-review-note">Relations found by local analysis. Missing relations do not prove a change is safe.</p>
+                      <details><summary>Response details</summary><pre x-text="$store.semReviewLoop.formatResult($store.semReviewLoop.impactResult)"></pre></details>
+                    </section>
+                  </template>
                 </div>
               </template>
-              <template x-if="!$store.semReviewLoop.selectedChange()"><div class="sem-review-empty">Select an entity from Changes to inspect its review card.</div></template>
-              <div class="sem-review-card" style="margin-top:.8rem"><div class="sem-review-card-title">Completion checkpoint</div><p x-text="$store.semReviewLoop.payload?.review?.checkpoint?.outcome || 'No checkpoint recorded for this fingerprint.'"></p><div class="sem-review-card-actions"><button type="button" class="sem-review-button" @click="$store.semReviewLoop.cancelReview()" :disabled="!$store.semReviewLoop.payload?.review?.checkpoint">Cancel current review</button></div></div>
+              <template x-if="!$store.semReviewLoop.selectedChange()"><div class="sem-review-empty"><span class="material-symbols-outlined" aria-hidden="true">code</span><p>Choose a function or class from Changes to inspect its code and impact.</p><button type="button" class="sem-review-button" @click="$store.semReviewLoop.showTab('changes')">Browse changes</button></div></template>
             </section>
-
             <section x-show="$store.semReviewLoop.activeTab === 'lessons'">
-              <div class="sem-review-note">Approved lessons are project-scoped advisory cards. They help Agent Zero recognize recurring review patterns in future matching changes; they do not edit source, run commands, or become global memory. Approval is available only after a <code>pass</code> or <code>repaired</code> checkpoint for the exact current working snapshot.</div>
-              <template x-if="$store.semReviewLoop.pendingLessons().length > 0 && !$store.semReviewLoop.hasCurrentResolvedCheckpoint()"><div class="sem-review-note" style="margin-top:.55rem">Approval is locked until this exact working snapshot has a <code>pass</code> or <code>repaired</code> checkpoint. If a card is marked stale, discard it and let the next completed review create a fresh proposal.</div></template>
-              <template x-if="$store.semReviewLoop.pendingLessons().length === 0"><div class="sem-review-empty">No pending project lesson proposals.</div></template>
-              <template x-for="lesson in $store.semReviewLoop.pendingLessons()" :key="lesson.proposal_id"><article class="sem-review-card"><div class="sem-review-card-title">Pending project lesson</div><div class="sem-review-card-meta"><span x-text="lesson.proposal_id"></span><span x-text="lesson.stale ? 'stale' : !$store.semReviewLoop.hasCurrentResolvedCheckpoint() ? 'checkpoint required' : 'current'"></span></div><p x-text="lesson.problem"></p><p x-text="lesson.resolution"></p><div class="sem-review-card-actions"><button type="button" class="sem-review-button" @click="$store.semReviewLoop.approveLesson(lesson.proposal_id)" :disabled="lesson.stale || !$store.semReviewLoop.hasCurrentResolvedCheckpoint()">Approve</button><button type="button" class="sem-review-button" @click="$store.semReviewLoop.discardLesson(lesson.proposal_id)">Discard</button></div></article></template>
-              <div class="sem-review-card" style="margin-top:.8rem"><div class="sem-review-card-title">Approved lessons</div><template x-if="$store.semReviewLoop.approvedLessons().length === 0"><p>No approved lessons for this project.</p></template><template x-for="lesson in $store.semReviewLoop.approvedLessons()" :key="lesson.proposal_id"><div class="sem-review-card-meta"><span x-text="lesson.problem"></span><button type="button" class="sem-review-button" @click="$store.semReviewLoop.deleteLesson(lesson.proposal_id)">Delete</button></div></template><div class="sem-review-card-actions"><button type="button" class="sem-review-button" x-show="$store.semReviewLoop.approvedLessons().length" @click="$store.semReviewLoop.forgetAllLessons()">Forget all</button></div></div>
+              <p class="sem-review-note">Keep what worked. Approved lessons help Agent Zero recognize similar problems in this project’s future reviews.</p>
+              <template x-if="$store.semReviewLoop.pendingLessons().length === 0 && $store.semReviewLoop.approvedLessons().length === 0"><div class="sem-review-empty"><span class="material-symbols-outlined" aria-hidden="true">lightbulb</span><p>No lessons yet. After a successful review, Agent Zero can propose a problem and resolution for you to keep.</p></div></template>
+              <template x-for="lesson in $store.semReviewLoop.pendingLessons()" :key="lesson.proposal_id"><article class="sem-review-card"><h3 class="sem-review-card-title" x-text="lesson.problem"></h3><p x-text="lesson.resolution"></p><p class="sem-review-note" x-show="lesson.stale || !$store.semReviewLoop.hasCurrentResolvedCheckpoint()" x-text="lesson.stale ? 'This proposal refers to older code. Discard it and review the latest changes.' : 'Available to save after this version passes review.'"></p><div class="sem-review-card-actions"><button type="button" class="sem-review-button is-primary" @click="$store.semReviewLoop.approveLesson(lesson.proposal_id)" :disabled="$store.semReviewLoop.busy || lesson.stale || !$store.semReviewLoop.hasCurrentResolvedCheckpoint()">Keep lesson</button><button type="button" class="sem-review-button" @click="$store.semReviewLoop.discardLesson(lesson.proposal_id)" :disabled="$store.semReviewLoop.busy">Discard</button></div></article></template>
+              <template x-for="lesson in $store.semReviewLoop.approvedLessons()" :key="lesson.proposal_id"><article class="sem-review-card"><div class="sem-review-card-meta">Saved lesson</div><h3 class="sem-review-card-title" x-text="lesson.problem"></h3><p x-text="lesson.resolution"></p><div class="sem-review-card-actions"><button type="button" class="sem-review-button" @click="$store.semReviewLoop.deleteLesson(lesson.proposal_id)" :disabled="$store.semReviewLoop.busy">Forget lesson</button></div></article></template>
             </section>
+            <details class="sem-review-connection">
+              <summary x-text="$store.semReviewLoop.payload?.mcp?.enabled ? 'Semantic tools connected · Local' : 'Semantic tools · Needs attention'"></summary>
+              <p>Tools connect automatically and stay enabled with this plugin. Source analysis runs locally.</p>
+              <p class="sem-review-note" x-text="$store.semReviewLoop.mcpToolsLabel()"></p>
+              <p role="status" x-show="$store.semReviewLoop.payload?.mcp?.error" x-text="$store.semReviewLoop.payload?.mcp?.error"></p>
+              <p role="status" x-show="$store.semReviewLoop.payload?.sem?.error" x-text="$store.semReviewLoop.payload?.sem?.error"></p>
+              <button type="button" class="sem-review-button" x-show="!$store.semReviewLoop.payload?.mcp?.enabled" @click="$store.semReviewLoop.retryMcp()" :disabled="$store.semReviewLoop.busy || !$store.semReviewLoop.contextId">Retry connection</button>
+            </details>
           </main>
         </section>
       </div>

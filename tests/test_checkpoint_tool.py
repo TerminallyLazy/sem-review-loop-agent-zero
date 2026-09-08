@@ -553,3 +553,57 @@ async def test_checkpoint_fails_closed_if_snapshot_changes_before_record(
     )
     assert "changed during checkpoint" in response.message
     assert registry.checkpoint_for(SCOPE) is None
+
+
+@pytest.mark.asyncio
+async def test_routine_pass_does_not_create_generic_lesson(registry, monkeypatch):
+    monkeypatch.setattr(module, "get_lesson_store", lambda: pytest.fail("Routine pass created a lesson"))
+    result = await checkpoint_tool().execute(
+        fingerprint="current", outcome="pass", structural_entities=["entity-1"],
+    )
+    assert "checkpoint recorded" in result.message
+    assert "proposal" not in result.message
+
+
+@pytest.mark.asyncio
+async def test_checkpoint_proposes_actual_problem_and_resolution(registry, monkeypatch):
+    captured = []
+    monkeypatch.setattr(module, "get_lesson_store", lambda: SimpleNamespace(
+        propose_from_checkpoint=lambda *args, **kwargs: captured.append(kwargs) or object(),
+    ))
+    lesson = {"problem": "Negative refunds inflated totals.", "resolution": "The total excludes refunded items and passed boundary tests."}
+    result = await checkpoint_tool().execute(
+        fingerprint="current", outcome="repaired", structural_entities=["entity-1"], lesson=lesson,
+    )
+    assert "pending user approval" in result.message
+    assert captured == [lesson]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("lesson", [{}, {"problem": "Missing resolution"}, {"problem": "", "resolution": "Done"}, {"problem": "token=secret", "resolution": "Done"}])
+async def test_invalid_lesson_does_not_record_checkpoint(registry, lesson):
+    result = await checkpoint_tool().execute(
+        fingerprint="current", outcome="pass", structural_entities=["entity-1"], lesson=lesson,
+    )
+    assert result.message.startswith("Checkpoint rejected")
+    assert registry.public_status(SCOPE)["checkpoint"] is None
+
+
+@pytest.mark.asyncio
+async def test_status_returns_exact_current_fingerprint_without_recording(registry, monkeypatch):
+    calls = []
+    class Coordinator:
+        def register_scope(self, scope, config):
+            calls.append(scope)
+        async def ensure_current(self, scope, timeout_seconds):
+            return registry.current_working(scope)
+    monkeypatch.setattr(module, 'get_coordinator', lambda: Coordinator())
+    result = await checkpoint_tool().execute(action='status')
+    import json
+    status = json.loads(result.message)
+    assert status['fingerprint'] == 'current'
+    assert status['structural_entities'] == ['entity-1']
+    assert status['checkpoint_available'] is True
+    assert registry.public_status(SCOPE)['checkpoint'] is None
+    assert calls == [SCOPE]
+    assert not result.break_loop

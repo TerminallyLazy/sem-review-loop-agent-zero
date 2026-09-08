@@ -863,9 +863,12 @@ def test_hooks_install_and_async_uninstall(
         "ensure_installed",
         lambda: events.append("install"),
     )
-    assert hooks.install(ignored=True)
+    from helpers import projects
+    monkeypatch.setattr(projects, "get_active_projects_list", lambda: [])
+    import asyncio
+    assert asyncio.run(hooks.install(ignored=True))
     assert events == ["install"]
-    assert hooks.pre_update(ignored=True)
+    assert asyncio.run(hooks.pre_update(ignored=True))
     assert events == ["install", "install"]
 
     class FakeManager:
@@ -917,7 +920,10 @@ def test_install_hook_defers_unsupported_platform_to_first_use(
         "warning",
         lambda message: warnings.append(message),
     )
-    assert hooks.install()
+    from helpers import projects
+    monkeypatch.setattr(projects, "get_active_projects_list", lambda: [])
+    import asyncio
+    assert asyncio.run(hooks.install())
     assert len(warnings) == 1
     assert "first semantic review" in warnings[0]
     assert "custom" in warnings[0]
@@ -932,7 +938,8 @@ def test_install_hook_propagates_supported_install_failure(
         lambda: (_ for _ in ()).throw(installer.InstallError("checksum")),
     )
     with pytest.raises(installer.InstallError, match="checksum"):
-        hooks.install()
+        import asyncio
+        asyncio.run(hooks.install())
 
 
 def test_uninstall_aborts_and_preserves_recovery_data_on_cleanup_failure(
@@ -976,3 +983,24 @@ def test_uninstall_aborts_and_preserves_recovery_data_on_cleanup_failure(
     assert len(errors) == 1
     assert "aborted" in errors[0]
     assert "recovery data" in errors[0]
+
+
+def test_install_automatically_connects_existing_projects(monkeypatch, tmp_path):
+    import asyncio
+    from helpers import projects, plugins
+    from usr.plugins.sem_review_loop.helpers import services
+    root = tmp_path / 'existing-project'
+    root.mkdir()
+    calls = []
+    class Manager:
+        async def ensure_enabled(self, scope, config):
+            calls.append((scope.project_name, scope.project_root, config.watched_subdirectory))
+            return {'enabled': True}
+    monkeypatch.setattr(hooks, 'ensure_installed', lambda: None)
+    monkeypatch.setattr(projects, 'get_projects_parent_folder', lambda: str(tmp_path))
+    monkeypatch.setattr(projects, 'get_active_projects_list', lambda: [{'name': root.name}])
+    monkeypatch.setattr(projects, 'get_project_folder', lambda name: str(root))
+    monkeypatch.setattr(plugins, 'get_plugin_config', lambda *args, **kwargs: {})
+    monkeypatch.setattr(services, 'get_mcp_manager', lambda: Manager())
+    assert asyncio.run(hooks.install())
+    assert calls == [(root.name, root, '.')]
