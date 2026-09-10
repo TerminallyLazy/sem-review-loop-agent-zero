@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 import threading
 from collections.abc import Callable
@@ -32,6 +33,21 @@ class FingerprintError(RuntimeError):
     pass
 
 
+class RepositoryNotReadyError(FingerprintError):
+    """Review has no Git baseline; this is setup, not an agent repair task."""
+
+
+NOT_A_REPOSITORY = (
+    "Semantic Review is unavailable: the Agent Zero project directory is not a Git repository. "
+    "Review requires a project rooted in a Git checkout with an initial commit. "
+    "Repositories in child folders are not detected from the project root."
+)
+NO_INITIAL_COMMIT = (
+    "Semantic Review is unavailable: this Git repository has no initial commit. "
+    "An initial commit is required before reviewing changes against HEAD."
+)
+
+
 def _bounded_error_detail(stderr: bytes) -> str:
     detail = stderr.decode("utf-8", errors="replace").strip()
     if len(detail) <= _ERROR_DETAIL_LIMIT:
@@ -55,6 +71,7 @@ def _stream_git_stdout(
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             shell=False,
+            env={**os.environ, "LC_ALL": "C"},
         )
     except OSError as exc:
         detail = _bounded_error_detail(
@@ -154,27 +171,52 @@ def _stream_git_stdout(
         ) from stream_error
     if returncode != 0:
         detail = _bounded_error_detail(bytes(stderr_capture))
+        if "not a git repository" in detail.lower():
+            raise RepositoryNotReadyError(NOT_A_REPOSITORY)
         suffix = f": {detail}" if detail else "."
         raise FingerprintError(
             f"Git fingerprint command failed{suffix}"
         )
 
 
+def _has_unborn_head(root: Path) -> bool:
+    def run(*args: str) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            ["git", *args], cwd=root, capture_output=True, shell=False,
+            timeout=_GIT_TIMEOUT_SECONDS, env={**os.environ, "LC_ALL": "C"},
+        )
+    try:
+        inside = run("rev-parse", "--is-inside-work-tree")
+        if inside.returncode or inside.stdout.strip() != b"true":
+            return False
+        symbolic = run("symbolic-ref", "--quiet", "HEAD")
+        branch = symbolic.stdout.decode("utf-8").strip()
+        if symbolic.returncode or not branch.startswith("refs/heads/"):
+            return False
+        return run("show-ref", "--verify", "--quiet", branch).returncode == 1
+    except (OSError, subprocess.TimeoutExpired, UnicodeError):
+        return False
+
+
 def _resolve_commit(root: Path, ref: str) -> bytes:
     """Resolve and validate one ref as an immutable commit object ID."""
 
     output = bytearray()
-    _stream_git_stdout(
-        root,
-        [
-            "rev-parse",
-            "--verify",
-            "--end-of-options",
-            f"{ref}^{{commit}}",
-        ],
-        output.extend,
-        max_stdout_bytes=_REF_OUTPUT_LIMIT,
-    )
+    try:
+        _stream_git_stdout(
+            root,
+            ["rev-parse", "--verify", "--end-of-options", f"{ref}^{{commit}}"],
+            output.extend,
+            max_stdout_bytes=_REF_OUTPUT_LIMIT,
+        )
+    except RepositoryNotReadyError:
+        raise
+    except FingerprintError:
+        # Only an unborn symbolic HEAD is a missing baseline. Invalid refs,
+        # permissions, corruption and other Git failures remain real errors.
+        if ref == "HEAD" and _has_unborn_head(root):
+            raise RepositoryNotReadyError(NO_INITIAL_COMMIT) from None
+        raise
     object_id = bytes(output).strip()
     if (
         len(object_id) not in _VALID_OID_LENGTHS

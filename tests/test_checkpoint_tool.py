@@ -607,3 +607,17 @@ async def test_status_returns_exact_current_fingerprint_without_recording(regist
     assert registry.public_status(SCOPE)['checkpoint'] is None
     assert calls == [SCOPE]
     assert not result.break_loop
+
+
+@pytest.mark.asyncio
+async def test_status_explains_missing_repository(registry, monkeypatch, tmp_path):
+    from usr.plugins.sem_review_loop.helpers.fingerprints import working_fingerprint
+    class Coordinator:
+        def register_scope(self, *_):
+            pass
+        async def ensure_current(self, *_, **kwargs):
+            return working_fingerprint(tmp_path, ".")
+    monkeypatch.setattr(module, "get_coordinator", lambda: Coordinator())
+    result = await checkpoint_tool().execute(action="status")
+    assert "not a Git repository" in result.message
+    assert registry.public_status(SCOPE)["checkpoint"] is None

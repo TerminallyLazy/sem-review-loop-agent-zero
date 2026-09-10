@@ -1,7 +1,7 @@
 name: sem_review_loop
 title: Semantic Review Loop
 description: Entity-level review, bounded repair, and approved project lessons powered by sem.
-version: 1.2.0
+version: 1.2.1
 settings_sections:
   - agent
 per_project_config: true

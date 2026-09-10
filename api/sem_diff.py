@@ -14,6 +14,7 @@ from usr.plugins.sem_review_loop.helpers.coordinator import (
     RefreshRaceError,
     RefreshTimeoutError,
 )
+from usr.plugins.sem_review_loop.helpers.fingerprints import FingerprintError, RepositoryNotReadyError
 from usr.plugins.sem_review_loop.helpers.sem_runner import SemCommandError
 from usr.plugins.sem_review_loop.helpers.sem_types import DiffRequest
 from usr.plugins.sem_review_loop.helpers.services import get_coordinator, get_registry
@@ -59,9 +60,11 @@ class SemDiff(ApiHandler):
             if not isinstance(public, dict):
                 raise RefreshRaceError("Semantic diff result is unavailable")
             return json_response({"ok": True, "snapshot": public})
+        except RepositoryNotReadyError as exc:
+            return bad_request(exc, status=409)
         except RefreshTimeoutError as exc:
             return bad_request(exc, status=409)
         except RefreshRaceError as exc:
             return bad_request(exc, status=409)
-        except (APIInputError, SemCommandError, ValueError) as exc:
+        except (APIInputError, SemCommandError, FingerprintError, ValueError) as exc:
             return bad_request(exc)

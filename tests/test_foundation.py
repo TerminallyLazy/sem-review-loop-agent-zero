@@ -18,7 +18,7 @@ def test_manifest_contract_is_exact() -> None:
             "Entity-level review, bounded repair, and approved project "
             "lessons powered by sem."
         ),
-        "version": "1.2.0",
+        "version": "1.2.1",
         "settings_sections": ["agent"],
         "per_project_config": True,
         "per_agent_config": False,

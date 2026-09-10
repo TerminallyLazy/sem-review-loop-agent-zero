@@ -123,3 +123,17 @@ Lessons are optional and specific: the checkpoint tool accepts a `lesson` with
 create generic lessons. Approval binds to the current working snapshot even
 when a historical comparison is on screen. Approved lessons remain advisory
 and project-local.
+
+## Git repository setup
+
+Semantic Review compares changes against Git history. The Agent Zero project
+directory must be inside the intended Git checkout, with an initial commit.
+A repository cloned into a child folder does not make its parent a repository.
+For container deployments, the checkout and its Git metadata must be available
+inside the container; linked worktrees also need their referenced Git metadata.
+
+If the project has no repository or initial commit, version 1.2.1 reports that
+review is unavailable and allows the agent to finish without an acknowledgement
+retry or a successful-review checkpoint. Review resumes after the Git baseline
+is available. The plugin does not initialize repositories or create commits.
+Do not enable GIT_DISCOVERY_ACROSS_FILESYSTEM to work around a missing checkout.
