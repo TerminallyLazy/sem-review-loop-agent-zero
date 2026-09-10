@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+
+from usr.plugins.sem_review_loop.helpers.fingerprints import RepositoryNotReadyError
 from typing import Any
 
 from helpers.tool import Response, Tool
@@ -76,6 +78,8 @@ class SemReviewCheckpoint(Tool):
             if action != "record":
                 return _rejected("action must be status or record.")
             snapshot = registry.current_working(scope)
+        except RepositoryNotReadyError as exc:
+            return _rejected(str(exc))
         except Exception:
             return _rejected(
                 "project-scoped Semantic Review state is unavailable."

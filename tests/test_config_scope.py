@@ -588,10 +588,31 @@ def test_invalid_ref_and_non_git_errors_are_bounded(tmp_path: Path) -> None:
     non_git.mkdir()
     with pytest.raises(FingerprintError) as outside:
         working_fingerprint(non_git, ".")
-    assert "Git fingerprint" in str(outside.value)
+    assert isinstance(outside.value, fingerprints_module.RepositoryNotReadyError)
+    assert "not a Git repository" in str(outside.value)
     assert len(str(outside.value)) <= 1200
 
 
 def test_stdin_fingerprint_is_rejected_clearly(tmp_path: Path) -> None:
     with pytest.raises(FingerprintError, match="stdin"):
         diff_fingerprint(tmp_path, ".", DiffRequest("stdin"))
+
+
+def test_repository_readiness_recovers_after_initial_commit(tmp_path: Path) -> None:
+    with pytest.raises(fingerprints_module.RepositoryNotReadyError, match="not a Git repository"):
+        working_fingerprint(tmp_path, ".")
+    assert not (tmp_path / ".git").exists()
+    git(tmp_path, "init")
+    with pytest.raises(fingerprints_module.RepositoryNotReadyError, match="no initial commit"):
+        working_fingerprint(tmp_path, ".")
+    git(tmp_path, "-c", "user.name=QA", "-c", "user.email=qa@example.invalid", "commit", "--allow-empty", "-m", "Baseline")
+    assert len(working_fingerprint(tmp_path, ".")) == 64
+
+
+def test_nested_checkout_does_not_make_parent_a_repository(tmp_path: Path) -> None:
+    child = tmp_path / "checkout"
+    child.mkdir()
+    initialized_repo(child)
+    with pytest.raises(fingerprints_module.RepositoryNotReadyError, match="child folder"):
+        working_fingerprint(tmp_path, "checkout")
+    assert len(working_fingerprint(child, ".")) == 64

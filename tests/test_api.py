@@ -101,3 +101,20 @@ async def test_status_does_not_install_missing_managed_binary(monkeypatch: pytes
     payload = response_json(result)
     assert payload["sem"]["available"] is False
     assert payload["sem"]["managed"] is True
+
+
+@pytest.mark.asyncio
+async def test_non_git_diff_returns_actionable_conflict(tmp_path, monkeypatch):
+    from usr.plugins.sem_review_loop.helpers.fingerprints import working_fingerprint
+    monkeypatch.setattr(sem_diff, "agent_scope_config", lambda *_: (SimpleNamespace(), SCOPE, CONFIG))
+
+    class Coordinator:
+        async def refresh_now(self, *_):
+            return working_fingerprint(tmp_path, ".")
+
+    monkeypatch.setattr(sem_diff, "get_coordinator", lambda: Coordinator())
+    result = await object.__new__(sem_diff.SemDiff).process({"mode": "working"}, SimpleNamespace())
+    assert result.status_code == 409
+    assert "not a Git repository" in result.get_data(as_text=True)
+    assert "fatal:" not in result.get_data(as_text=True)
+    assert result.headers["Cache-Control"] == "no-store"

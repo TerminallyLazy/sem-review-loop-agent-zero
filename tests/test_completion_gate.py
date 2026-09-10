@@ -1068,3 +1068,44 @@ async def test_terminal_disclosure_updates_streamed_answer_without_retry(registr
     assert final.break_loop is True
     assert 'Boundary tests are missing.' in final.message
     assert updates == [{'content': final.message}]
+
+
+@pytest.mark.asyncio
+async def test_non_git_project_finishes_without_acknowledgement_or_checkpoint(
+    tmp_path: Path, registry: ReviewRegistry, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from usr.plugins.sem_review_loop.helpers.fingerprints import working_fingerprint
+    patch_scope_and_config(monkeypatch)
+    registry.set_mcp_enabled(SCOPE, True)
+
+    class Manager:
+        async def ensure_enabled(self, *_):
+            return {"armed": True, "enabled": True, "tools": FOCUSED_TOOLS, "error": ""}
+
+    class Coordinator:
+        def register_scope(self, *_):
+            pass
+
+        async def ensure_current(self, *_, **kwargs):
+            return working_fingerprint(tmp_path, ".")
+
+    monkeypatch.setattr(module, "get_mcp_manager", lambda: Manager())
+    monkeypatch.setattr(module, "get_coordinator", lambda: Coordinator())
+    prepared = await module.prepare_completion(SimpleNamespace())
+    assert prepared.repository_unavailable
+    assert prepared.snapshot is None
+    for _ in range(2):
+        response = Response(message="Task completed.", break_loop=True)
+        module.enforce_completion(SimpleNamespace(), response, prepared)
+        assert response.break_loop is True
+        assert "not a Git repository" in response.message
+        assert "initial commit" in response.message
+        assert "fatal:" not in response.message
+    assert registry.completion_review_state(SCOPE).checkpoint is None
+    # A repository removed during response generation is disclosed the same way.
+    ready = module.PreparedCompletion(SCOPE, parse_config({}), snapshot(), True, True)
+    revalidated = await module.revalidate_completion(ready)
+    assert revalidated.repository_unavailable
+    response = Response(message="Done.", break_loop=True)
+    module.enforce_completion(SimpleNamespace(), response, revalidated)
+    assert "not a Git repository" in response.message

@@ -50,3 +50,16 @@ When testing edits in an already-running development server, cached Python
 extension classes can retain older helper imports. Validate the loaded hooks
 as well as files on disk. A normal fresh installation loads the updated code;
 coordinate any shared-server restart with its other users.
+
+## Version 1.2.1 regression verification (2026-09-10)
+
+- Full framework-runtime suite with the pinned real binary: **631 passed**.
+- Real temporary Git directories reproduce a missing repository, an unborn
+  HEAD, and a checkout nested below the project directory. An initial commit
+  restores fingerprinting without restarting or creating plugin-owned history.
+- API requests return actionable HTTP 409 setup errors instead of an unhandled
+  fingerprint exception. Checkpoint status preserves the setup explanation.
+- Completion preparation and final revalidation disclose missing Git setup
+  without an acknowledgement exception or a successful-review checkpoint.
+- Invalid user refs remain Git errors. No cross-filesystem discovery override,
+  repository initialization, source edits, or commits are performed by the fix.

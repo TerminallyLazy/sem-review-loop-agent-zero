@@ -28,6 +28,9 @@ from usr.plugins.sem_review_loop.helpers.services import (
 )
 
 
+from usr.plugins.sem_review_loop.helpers.fingerprints import RepositoryNotReadyError
+
+
 PREPARED_KEY = "_sem_review_loop_prepared"
 COMPLETION_REFRESH_TIMEOUT_SECONDS = 20
 MAX_ERROR_BYTES = 500
@@ -54,6 +57,7 @@ class PreparedCompletion:
     mcp_armed: bool
     mcp_enabled: bool
     error: str = ""
+    repository_unavailable: bool = False
 
 
 class CompletionPreparationError(RuntimeError):
@@ -235,6 +239,11 @@ async def prepare_completion(agent: object) -> PreparedCompletion:
                 error="Current semantic diff state is stale.",
             )
         return PreparedCompletion(scope, config, snapshot, True, True)
+    except RepositoryNotReadyError as exc:
+        return PreparedCompletion(
+            scope, config, None, True, True,
+            error=str(exc), repository_unavailable=True,
+        )
     except asyncio.CancelledError:
         raise
     except Exception as exc:
@@ -279,6 +288,10 @@ async def revalidate_completion(
         current = await coordinator.ensure_current(
             prepared.scope,
             timeout_seconds=COMPLETION_REFRESH_TIMEOUT_SECONDS,
+        )
+    except RepositoryNotReadyError as exc:
+        return replace(
+            prepared, snapshot=None, error=str(exc), repository_unavailable=True,
         )
     except asyncio.CancelledError:
         raise
@@ -478,6 +491,7 @@ def enforce_completion(
             prepared,
             "",
             prepared.error or "Focused sem MCP tools are unavailable.",
+            require_acknowledgement=not prepared.repository_unavailable,
         )
         return
 
